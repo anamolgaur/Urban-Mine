@@ -1,0 +1,32 @@
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
+import type { Estimate, Lot, ScanResult } from './types.ts'
+
+/** Everything the worker is in the middle of: from the first photo to the created lot. */
+export type Flow = {
+  hint: string | null
+  images: (string | null)[]
+  labelText: string
+  scan: ScanResult | null
+  type: string | null
+  modelId: string | null
+  qty: number
+  works: boolean | null
+  estimate: Estimate | null
+  done: Record<string, string | true> // safety step id -> photo hash (or true when no photo was needed)
+  extraHashes: string[]
+  lot: Lot | null
+}
+export const emptyFlow: Flow = { hint: null, images: [null, null, null, null], labelText: '', scan: null, type: null, modelId: null, qty: 1, works: null, estimate: null, done: {}, extraHashes: [], lot: null }
+
+type Ctx = { flow: Flow; patch: (p: Partial<Flow>) => void; setImage: (i: number, url: string) => void; reset: () => void }
+const FlowCtx = createContext<Ctx>({ flow: emptyFlow, patch: () => {}, setImage: () => {}, reset: () => {} })
+export const useFlow = () => useContext(FlowCtx)
+
+export function FlowProvider({ children }: { children: ReactNode }) {
+  const [flow, setFlow] = useState<Flow>(emptyFlow)
+  const patch = useCallback((p: Partial<Flow>) => setFlow((f) => ({ ...f, ...p })), [])
+  const setImage = useCallback((i: number, url: string) => setFlow((f) => ({ ...f, images: f.images.map((x, j) => (j === i ? url : x)) })), [])
+  const reset = useCallback(() => setFlow(emptyFlow), [])
+  const value = useMemo(() => ({ flow, patch, setImage, reset }), [flow, patch, setImage, reset])
+  return <FlowCtx.Provider value={value}>{children}</FlowCtx.Provider>
+}

@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink: #14171A;
+  --color-paper: #F4F3EF;
+  --color-hair: #DAD8D0;
+  --color-amber: #F2A20C;
+  --color-ok: #1B6B3A;
+  --color-bad: #B3261E;
+  --color-mute: #565A5F;
+  --color-sunk: #E9E7E0;
+  --font-sans: 'IBM Plex Sans', 'Noto Sans Devanagari', system-ui, sans-serif;
+  --font-cond: 'IBM Plex Sans Condensed', 'Noto Sans Devanagari', system-ui, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+}
+
+/* Base styles must live in a layer, otherwise they override Tailwind utilities (e.g. text-paper on a button). */
+@layer base {
+  html, body, #root { min-height: 100%; }
+  body { background: var(--color-sunk); color: var(--color-ink); font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  :focus-visible { outline: 3px solid var(--color-ink); outline-offset: 2px; }
+}
+.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
