@@ -12,5 +12,5 @@ export const USERS = [
   { id: 'u-auditor-1', role: 'auditor', name: 'SAMPLE Auditor Priya', phone: '9000000031', language: 'en', workshop_id: null },
 ];
 export const REPAIRER_LISTINGS = [
-  { id: 'rl-1', user_id: 'u-repairer-1', skills: ['phone_screen', 'phone_battery', 'charger'], area: 'SAMPLE: Seelampur, Delhi', start_price: 150, hours: '10:00-19:00', verified_count: 0 },
+  { id: 'rl-1', user_id: 'u-repairer-1', skills: ['phone', 'charger', 'laptop'], area: 'SAMPLE: Seelampur, Delhi', start_price: 150, hours: '10:00-19:00', verified_count: 0 },
 ];

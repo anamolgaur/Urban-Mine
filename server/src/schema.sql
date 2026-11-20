@@ -60,7 +60,8 @@ CREATE TABLE repairer_listing (
 );
 CREATE TABLE repair_job (
   id TEXT PRIMARY KEY, listing_id TEXT NOT NULL REFERENCES repairer_listing(id),
-  before_photo TEXT, after_photo TEXT, status TEXT NOT NULL DEFAULT 'requested'
+  before_photo TEXT, after_photo TEXT, status TEXT NOT NULL DEFAULT 'requested',
+  note TEXT, created_at TEXT, completed_at TEXT
 );
 CREATE TABLE flag (
   id TEXT PRIMARY KEY, lot_id TEXT NOT NULL REFERENCES lot(id), kind TEXT NOT NULL, detail TEXT, status TEXT NOT NULL DEFAULT 'open'

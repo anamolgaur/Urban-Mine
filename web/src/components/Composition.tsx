@@ -19,7 +19,7 @@ export default function Composition({ est, qty }: { est: Estimate; qty: number }
       </div>
       <table className="mt-3 w-full text-sm">
         <thead>
-          <tr className="border-b border-ink text-left font-mono text-[12px] uppercase">
+          <tr className="border-b border-ink text-left font-mono text-sm uppercase">
             <th className="py-1 font-semibold">{t('material')}</th>
             <th className="py-1 text-right font-semibold">{t('weight')}</th>
             <th className="py-1 text-right font-semibold">{t('rate_kg')}</th>
@@ -38,7 +38,7 @@ export default function Composition({ est, qty }: { est: Estimate; qty: number }
                 <td className="num py-2 text-right">{Math.round(l.grams * qty)} g</td>
                 <td className="num py-2 text-right">
                   {r ? inr(r.rate) : '-'}
-                  {r && r.change !== null && r.change !== 0 && <span className="block text-[12px] text-mute">{r.change > 0 ? '▲' : '▼'} {Math.abs(r.change)}</span>}
+                  {r && r.change !== null && r.change !== 0 && <span className="block text-sm text-mute">{r.change > 0 ? '▲' : '▼'} {Math.abs(r.change)}</span>}
                 </td>
                 <td className="num py-2 text-right font-semibold">{inr(l.value * qty)}</td>
               </tr>

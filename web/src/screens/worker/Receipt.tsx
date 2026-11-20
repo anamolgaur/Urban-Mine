@@ -55,7 +55,7 @@ export default function Receipt() {
             <p className="mt-1"><Tag tone="bad">{t('simulated')}</Tag></p>
           </div>
           <H2>{t('record_hash')}</H2>
-          <p className="num break-all text-[12px]">{l.hash}</p>
+          <p className="num break-all text-sm">{l.hash}</p>
           <p className="mt-2 text-sm text-mute">{t('hash_note')}</p>
           {err && <ErrorNote message={err} />}
           <div className="mt-5 space-y-2">

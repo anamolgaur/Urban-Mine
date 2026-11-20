@@ -36,7 +36,7 @@ export default function Auditor() {
           ))}
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl px-4 py-5">
+      <main id="main" className="screen-enter mx-auto max-w-6xl px-4 py-5">
         <Routes>
           <Route index element={<LotReview />} />
           <Route path="lot/:id" element={<LotDetail />} />

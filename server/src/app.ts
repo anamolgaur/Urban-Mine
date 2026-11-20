@@ -11,11 +11,11 @@ import { StubClassifier, TesseractOcr, type Classifier, type Ocr } from './visio
 import { loadModels } from './matcher.ts';
 import { createLot } from './lots.ts';
 import { recordFlags } from './fraud.ts';
-import { listLot, placeBid, offersFor, acceptBid, holdLot, releaseLot, requestRecheck } from './market.ts';
+import { listLot, placeBid, offersFor, bidsFor, acceptBid, rejectBid, holdLot, releaseLot, requestRecheck } from './market.ts';
 import { receiptData, renderReceiptPdf } from './receipt.ts';
 import { repairComparison, listGuides, listListings, upsertListing, createJob, completeJob } from './repair.ts';
 import { savePhoto, parseDataUrl } from './photos.ts';
-import { lotView, lotsFor, chainStatus } from './views.ts';
+import { lotView, lotsFor, chainStatus, chainDetail } from './views.ts';
 
 type Row = Record<string, any>;
 export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string };
@@ -212,6 +212,10 @@ export async function buildApp(db: DatabaseSync, deps: AppDeps = {}) {
     // Mocked UPI payout: no money moves.
     return { ...r, payout: { method: 'UPI (SIMULATED)', status: 'confirmed', reference: 'SIM-' + req.params.id.slice(0, 8).toUpperCase() } };
   });
+  app.post<{ Params: { id: string } }>('/api/bids/:id/reject', async (req) => {
+    rejectBid(db, req.params.id, actor(req, ['worker']).id);
+    return { ok: true };
+  });
   app.get<{ Params: { id: string } }>('/api/lots/:id/receipt.pdf', async (req, reply) => {
     const u = actor(req, ['worker', 'auditor', 'recycler']);
     const l = db.prepare('SELECT user_id FROM lot WHERE id = ?').get(req.params.id) as Row | undefined;
@@ -221,11 +225,24 @@ export async function buildApp(db: DatabaseSync, deps: AppDeps = {}) {
   });
 
   // ---------- recycler ----------
+  /** Seller location and a SAMPLE expected value for a lot, so a recycler can judge a bid. */
+  const lotContext = (lotRow: Row) => {
+    const ws = db.prepare('SELECT w.address FROM workshop w JOIN user x ON x.workshop_id = w.id WHERE x.id = ?').get(lotRow.user_id) as Row | undefined;
+    const city = cityOf(ws?.address);
+    let low = 0, high = 0;
+    for (const it of JSON.parse(lotRow.items) as Row[]) {
+      const e = estimate(db, city, { modelId: it.model_id, type: it.type });
+      if (e) { low += e.low * (it.qty ?? 1); high += e.high * (it.qty ?? 1); }
+    }
+    return { workshop_address: (ws?.address as string | undefined) ?? null, expected: { low: Math.round(low), high: Math.round(high) } };
+  };
+  app.get('/api/recycler/bids', async (req) => bidsFor(db, actor(req, ['recycler']).id));
   app.get('/api/market/lots', async (req) => {
     const u = actor(req, ['recycler']);
     const rows = db.prepare("SELECT * FROM lot WHERE status = 'listed' ORDER BY rowid DESC").all() as Row[];
     return rows.map((r) => ({
       ...lotView(db, r),
+      ...lotContext(r),
       top_bid: (offersFor(db, r.id)[0]?.amount as number | undefined) ?? null,
       my_bid: (db.prepare("SELECT amount FROM bid WHERE lot_id = ? AND recycler_id = ? AND status = 'open' ORDER BY rowid DESC").get(r.id, u.id) as Row | undefined)?.amount ?? null,
     }));
@@ -250,7 +267,7 @@ export async function buildApp(db: DatabaseSync, deps: AppDeps = {}) {
     const u = actor(req, ['repairer']);
     const l = db.prepare('SELECT id FROM repairer_listing WHERE user_id = ?').get(u.id) as Row | undefined;
     if (!l) throw E(400, 'Create your listing first');
-    return { id: createJob(db, l.id, (req.body as any)?.before_photo) };
+    return { id: createJob(db, l.id, (req.body as any)?.before_photo, String((req.body as any)?.note ?? '')) };
   });
   app.post<{ Params: { id: string } }>('/api/repair/jobs/:id/complete', async (req) => {
     const u = actor(req, ['repairer']);
@@ -292,7 +309,7 @@ export async function buildApp(db: DatabaseSync, deps: AppDeps = {}) {
       const shared = (JSON.parse(o.photo_hashes) as string[]).filter((h) => view.photo_hashes.includes(h));
       if (shared.length) related.push({ id: o.id, worker_name: lotView(db, o).worker_name, created_at: o.created_at, shared });
     }
-    return { lot: view, related, offers: offersFor(db, l.id) };
+    return { lot: view, related, offers: offersFor(db, l.id), chain: chainDetail(db, l.user_id).get(l.id) ?? { hash_ok: false, link_ok: false } };
   });
   app.post<{ Params: { id: string } }>('/api/auditor/lots/:id/hold', async (req) => { actor(req, ['auditor']); holdLot(db, req.params.id); return { ok: true }; });
   app.post<{ Params: { id: string } }>('/api/auditor/lots/:id/release', async (req) => { actor(req, ['auditor']); releaseLot(db, req.params.id); return { ok: true }; });

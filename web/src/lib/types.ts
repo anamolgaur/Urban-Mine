@@ -24,8 +24,9 @@ export type LotStatus = 'open' | 'listed' | 'sold' | 'held'
 export type Lot = {
   id: string; user_id: string; worker_name: string; items: LotItem[]; weight_kg: number; steps_done: number; steps_total: number
   photo_hashes: string[]; gps: { lat: number; lng: number } | null; hash: string; prev_hash: string; short_hash: string
-  status: LotStatus; created_at: string; flags: Flag[]; chain_ok: boolean
+  status: LotStatus; created_at: string; flags: Flag[]; chain_ok: boolean; sale_amount: number | null
 }
 export type Offer = { id: string; recycler_name: string; amount: number; pickup_terms: string; expires_at: string; seconds_left: number }
 export type Guide = { id: string; fault: L; device_type: string; difficulty: 'easy' | 'medium' | 'hard'; tools: L[]; steps: L[] }
 export type Listing = { id: string; name: string; skills: string[]; area: string; start_price: number; hours: string; verified_count: number }
+export type Job = { id: string; before_photo: string; after_photo: string | null; status: 'in_progress' | 'completed'; note: string | null; created_at: string | null; completed_at: string | null }

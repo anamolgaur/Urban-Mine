@@ -48,22 +48,22 @@ export function upsertListing(db: DatabaseSync, userId: string, p: { skills: str
   return id;
 }
 
-export function createJob(db: DatabaseSync, listingId: string, beforePhoto: string) {
+export function createJob(db: DatabaseSync, listingId: string, beforePhoto: string, note = '', now = new Date()) {
   if (!beforePhoto) throw new Error('A before photo is required');
   const id = randomUUID();
-  db.prepare("INSERT INTO repair_job VALUES (?,?,?,?,?)").run(id, listingId, beforePhoto, null, 'in_progress');
+  db.prepare('INSERT INTO repair_job (id, listing_id, before_photo, after_photo, status, note, created_at) VALUES (?,?,?,?,?,?,?)').run(id, listingId, beforePhoto, null, 'in_progress', note.trim().slice(0, 120), now.toISOString());
   return id;
 }
 
 /** The repair count only goes up when a job has BOTH before and after photos. */
-export function completeJob(db: DatabaseSync, jobId: string, afterPhoto: string) {
+export function completeJob(db: DatabaseSync, jobId: string, afterPhoto: string, now = new Date()) {
   const job = db.prepare('SELECT * FROM repair_job WHERE id = ?').get(jobId) as Row | undefined;
   if (!job) throw new Error('Job not found');
   if (job.status === 'completed') throw new Error('Job already completed');
   if (!job.before_photo || !afterPhoto) throw new Error('Before and after photos are required');
   db.exec('BEGIN');
   try {
-    db.prepare("UPDATE repair_job SET after_photo = ?, status = 'completed' WHERE id = ?").run(afterPhoto, jobId);
+    db.prepare("UPDATE repair_job SET after_photo = ?, status = 'completed', completed_at = ? WHERE id = ?").run(afterPhoto, now.toISOString(), jobId);
     db.prepare('UPDATE repairer_listing SET verified_count = verified_count + 1 WHERE id = ?').run(job.listing_id);
     db.exec('COMMIT');
   } catch (e) { db.exec('ROLLBACK'); throw e; }

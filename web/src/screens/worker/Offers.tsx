@@ -5,7 +5,8 @@ import { useApi } from '../../lib/useApi.ts'
 import { api } from '../../lib/api.ts'
 import { inr, kg, countdown, dateShort } from '../../lib/format.ts'
 import type { Lot, Offer } from '../../lib/types.ts'
-import { Screen, H2, Btn, Banner, Tag, SampleTag, Loading, ErrorNote } from '../../components/ui.tsx'
+import { Screen, H2, Btn, Banner, Tag, SampleTag, ErrorNote } from '../../components/ui.tsx'
+import { Rail, Meter, KV, StatusChip, EmptyState, Skeleton } from '../../components/kit.tsx'
 import Icon from '../../components/Icon.tsx'
 import { lotTitle } from './Lots.tsx'
 
@@ -16,13 +17,14 @@ function useNow(ms: number) {
 }
 
 type Paid = { amount: number; reference: string; method: string }
+type LotFull = Lot & { sale?: { amount: number; buyer: string } | null }
 
-/** One screen for a lot in any state: put on sale, see offers with a countdown, accept, view receipt. */
+/** One screen for a lot in any state: put on sale, compare offers, accept or reject, then payout and receipt. */
 export default function Offers() {
   const { id } = useParams()
   const { t } = useLang()
   const nav = useNavigate()
-  const lot = useApi<Lot & { sale?: { amount: number; buyer: string } | null }>(`/api/lots/${id}`)
+  const lot = useApi<LotFull>(`/api/lots/${id}`)
   const listed = lot.data?.status === 'listed'
   const offers = useApi<Offer[]>(listed ? `/api/lots/${id}/offers` : null)
   const now = useNow(1000)
@@ -47,13 +49,13 @@ export default function Offers() {
   if (paid && l) {
     return (
       <Screen title={t('payout_title')} back={false}>
-        <div className="border-2 border-ok p-5 text-center">
-          <Icon name="check" size={48} className="mx-auto text-ok" />
+        <div className="border-2 border-ok bg-white p-5 text-center">
+          <Icon name="check" size={52} className="mx-auto text-ok" />
           <p className="mt-2 text-xl font-bold">{t('payout_done')}</p>
-          <p className="num mt-2 text-4xl font-semibold">{inr(paid.amount)}</p>
+          <p className="num mt-2 text-5xl font-semibold">{inr(paid.amount)}</p>
           <p className="mt-3 flex flex-wrap justify-center gap-1"><Tag tone="bad">{t('simulated')}</Tag><Tag>{paid.method}</Tag></p>
-          <p className="num mt-3 text-sm">{t('reference')}: {paid.reference}</p>
-          <p className="mt-3 text-sm text-mute">{t('no_money')}</p>
+          <p className="num mt-3 text-base">{t('reference')}: {paid.reference}</p>
+          <p className="mt-3 text-base text-mute">{t('no_money')}</p>
         </div>
         <div className="mt-4 space-y-2">
           <Btn onClick={() => nav(`/receipt/${l.id}`)} icon="download">{t('view_receipt')}</Btn>
@@ -63,27 +65,42 @@ export default function Offers() {
     )
   }
 
+  const recheck = l?.flags.some((f) => f.kind === 'recheck_requested' && f.status === 'open')
+  const timeline = l ? [
+    { k: 'tl_created', state: 'done' as const },
+    { k: 'tl_on_sale', state: l.status === 'open' ? ('now' as const) : ('done' as const) },
+    { k: 'tl_accepted', state: l.status === 'sold' ? ('done' as const) : l.status === 'listed' || l.status === 'held' ? ('now' as const) : ('todo' as const) },
+    { k: 'tl_paid', state: l.status === 'sold' ? ('done' as const) : ('todo' as const) },
+  ] : []
+
   return (
     <Screen title={t('lot_title')} back="/lots">
       {lot.error && <ErrorNote message={lot.error} />}
-      {lot.loading && <Loading />}
+      {lot.loading && <Skeleton rows={4} />}
       {l && (
         <>
-          <div className="flex items-start justify-between gap-2">
-            <div>
-              <p className="text-lg font-bold">{lotTitle(l, t)}</p>
-              <p className="text-sm text-mute">{kg(l.weight_kg)} · {dateShort(l.created_at)}</p>
+          <section className="border-2 border-ink bg-white p-3" aria-label={t('lot_title')}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="text-xl font-bold leading-tight">{lotTitle(l, t)}</p>
+                <p className="text-sm text-mute">{kg(l.weight_kg)} · {dateShort(l.created_at)}</p>
+              </div>
+              <StatusChip status={l.status} />
             </div>
-            <Tag tone={l.status === 'sold' ? 'ok' : l.status === 'held' ? 'bad' : l.status === 'listed' ? 'amber' : 'plain'}>{t('status.' + l.status)}</Tag>
-          </div>
-          <p className="mt-2 flex flex-wrap items-center gap-1">
-            <Icon name="link" size={16} /><span className="num text-sm">#{l.short_hash}</span>
-            {l.chain_ok ? <Tag tone="ok">✓ {t('chain_ok')}</Tag> : <Tag tone="bad">{t('chain_bad')}</Tag>}
-            <Tag>{l.steps_done}/{l.steps_total} {t('safety_short')}</Tag>
-          </p>
+            <dl className="mt-2 divide-y divide-hair border-t border-hair">
+              <KV k={t('lot_id')} v={l.id.slice(0, 8).toUpperCase()} mono />
+              <KV k={t('hash_status')} v={<span className="flex items-center gap-2"><span className="num text-sm">#{l.short_hash}</span>{l.chain_ok ? <Tag tone="ok">✓ {t('chain_ok')}</Tag> : <Tag tone="bad">{t('chain_bad')}</Tag>}</span>} />
+              <KV k={t('safety_done')} v={`${l.steps_done}/${l.steps_total}`} mono />
+              <KV k={t('loc_status')} v={<Tag tone={l.gps ? 'ok' : 'plain'}>{l.gps ? `✓ ${t('loc_added_ok')}` : t('loc_missing')}</Tag>} />
+            </dl>
+          </section>
 
-          <div className="mt-3 space-y-2">
-            {l.flags.some((f) => f.kind === 'recheck_requested' && f.status === 'open') && <Banner tone="bad" icon="alert">{t('recheck_banner')}</Banner>}
+          <H2>{t('tx_status')}</H2>
+          <Rail items={timeline.map((x) => ({ label: t(x.k), state: x.state }))} />
+          {l.status !== 'sold' && <p className="mt-3 text-sm text-mute">{t('payout_mocked')}</p>}
+
+          <div className="mt-4 space-y-2">
+            {recheck && <Banner tone="bad" icon="alert">{t('recheck_banner')}</Banner>}
             {l.status === 'held' && <Banner tone="bad" icon="lock">{t('held_banner')}</Banner>}
             {l.flags.filter((f) => f.kind !== 'recheck_requested').length > 0 && <Banner icon="info">{t('flag_note')} {l.flags.filter((f) => f.kind !== 'recheck_requested').map((f) => t('flag.' + f.kind)).join(', ')}</Banner>}
           </div>
@@ -95,8 +112,8 @@ export default function Offers() {
           )}
 
           {l.status === 'sold' && (
-            <div className="mt-5 space-y-2">
-              {l.sale && <p className="num text-3xl font-semibold">{inr(l.sale.amount)} <span className="text-base font-normal text-mute">{t('to')} {l.sale.buyer}</span></p>}
+            <div className="mt-5 space-y-3">
+              {l.sale && <div className="border-2 border-ok bg-white p-3"><p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('sold_to', { buyer: l.sale.buyer })}</p><p className="num text-4xl font-semibold">{inr(l.sale.amount)}</p><p className="mt-1"><Tag tone="bad">{t('simulated')}</Tag></p></div>}
               <Btn onClick={() => nav(`/receipt/${l.id}`)} icon="download">{t('view_receipt')}</Btn>
             </div>
           )}
@@ -104,33 +121,33 @@ export default function Offers() {
           {l.status === 'listed' && (
             <>
               <H2 right={<SampleTag />}>{t('offers_title')}</H2>
-              {offers.loading && <Loading />}
+              {offers.loading && <Skeleton rows={2} />}
               {offers.data && offers.data.length === 0 && (
-                <div className="border border-hair bg-white p-4 text-center">
-                  <Icon name="clock" size={28} className="mx-auto text-mute" />
-                  <p className="mt-1 font-semibold">{t('waiting_offers')}</p>
-                  <p className="mt-1 text-sm text-mute">{t('waiting_hint')}</p>
-                </div>
+                <EmptyState art="offers" title={t('waiting_offers')} body={t('waiting_hint')} />
               )}
               <ul className="space-y-3">
                 {offers.data?.map((o, idx) => {
                   const secs = Math.max(0, Math.round((Date.parse(o.expires_at) - now) / 1000))
                   return (
-                    <li key={o.id} className={`border-2 bg-white p-3 ${idx === 0 ? 'border-ink' : 'border-hair'}`}>
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold">{o.recycler_name}</p>
-                          <p className="text-sm text-mute">{o.pickup_terms}</p>
+                    <li key={o.id} className={`border-2 bg-white ${idx === 0 ? 'border-ink' : 'border-hair'}`}>
+                      <div className="flex items-start justify-between gap-2 p-3">
+                        <div className="min-w-0">
+                          <p className="flex items-center gap-1 text-lg font-bold leading-tight"><Icon name="shield" size={18} />{o.recycler_name}</p>
+                          <p className="mt-0.5 text-sm text-mute">{t('buyer_authorised')}</p>
+                          <p className="mt-1 flex items-start gap-1 text-base leading-snug"><Icon name="pin" size={16} className="mt-1 shrink-0" />{o.pickup_terms || '–'}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="num text-2xl font-semibold">{inr(o.amount)}</p>
+                        <div className="shrink-0 text-right">
+                          <p className="num text-3xl font-semibold">{inr(o.amount)}</p>
                           {idx === 0 && <Tag tone="amber">{t('best_offer')}</Tag>}
                         </div>
                       </div>
-                      <p className="num mt-2 flex items-center gap-1 text-sm" aria-label={t('time_left')}><Icon name="clock" size={16} />{secs > 0 ? `${countdown(secs)} ${t('left')}` : t('expired')}</p>
+                      <div className="border-t border-hair px-3 py-2">
+                        <p className="num mb-1 flex items-center gap-1 text-base font-semibold" aria-label={t('time_left')}><Icon name="clock" size={16} />{secs > 0 ? `${countdown(secs)} ${t('left')}` : t('expired')}</p>
+                        <Meter value={secs / 1800} label={t('time_left')} valueText={countdown(secs)} tone={secs < 120 ? 'amber' : 'ink'} />
+                      </div>
                       {confirm === o.id ? (
-                        <div className="mt-3 border-t border-hair pt-3">
-                          <p className="mb-2 font-semibold">{t('confirm_sell', { amount: inr(o.amount) })}</p>
+                        <div className="border-t border-hair p-3">
+                          <p className="mb-2 text-base font-bold">{t('confirm_sell', { amount: inr(o.amount) })}</p>
                           <div className="grid grid-cols-2 gap-2">
                             <Btn disabled={busy || secs === 0} icon="check" onClick={() => act(async () => {
                               const r = await api<{ amount: number; payout: { reference: string; method: string } }>(`/api/bids/${o.id}/accept`, { method: 'POST', body: {} })
@@ -140,7 +157,10 @@ export default function Offers() {
                           </div>
                         </div>
                       ) : (
-                        <div className="mt-3"><Btn disabled={secs === 0 || busy} onClick={() => setConfirm(o.id)}>{t('accept_offer')}</Btn></div>
+                        <div className="grid grid-cols-[1fr_auto] gap-2 border-t border-hair p-3">
+                          <Btn disabled={secs === 0 || busy} icon="check" onClick={() => setConfirm(o.id)}>{t('accept_offer')}</Btn>
+                          <Btn variant="secondary" full={false} disabled={busy} icon="x" onClick={() => act(async () => { await api(`/api/bids/${o.id}/reject`, { method: 'POST', body: {} }); offers.reload() })}>{t('reject_offer')}</Btn>
+                        </div>
                       )}
                     </li>
                   )
@@ -148,7 +168,7 @@ export default function Offers() {
               </ul>
               <div className="mt-4">
                 <Btn variant="secondary" disabled={busy} icon="plus" onClick={() => act(async () => { await api(`/api/demo/offers/${l.id}`, { method: 'POST', body: {} }); offers.reload() })}>{t('demo_offers')}</Btn>
-                <p className="mt-1 text-sm text-mute">{t('demo_offers_hint')} <Link className="underline" to="/profile">{t('profile_link')}</Link></p>
+                <p className="mt-1 text-sm text-mute">{t('demo_offers_hint')} <Link className="inline-flex min-h-11 items-center underline" to="/profile">{t('profile_link')}</Link></p>
               </div>
             </>
           )}

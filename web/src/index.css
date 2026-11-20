@@ -21,5 +21,7 @@
   button, input, select, textarea { font: inherit; color: inherit; }
   :focus-visible { outline: 3px solid var(--color-ink); outline-offset: 2px; }
 }
+@keyframes um-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.screen-enter { animation: um-enter 0.2s ease-out both; }
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

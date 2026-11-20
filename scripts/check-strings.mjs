@@ -14,7 +14,7 @@ const defined = new Set([...strings.matchAll(/^\s*'?([A-Za-z_.]+)'?:\s*\[/gm)].m
 const used = new Set()
 for (const m of src.matchAll(/\bt\(\s*'([^']+)'/g)) used.add(m[1])
 // keys stored in arrays/objects and later passed to t(): any quoted token with a known key prefix
-for (const m of src.matchAll(/'((?:step|tab|aud|col|shot|cmp|kpi|filter|label|gear)_[a-z_]+)'/g)) used.add(m[1])
+for (const m of src.matchAll(/'((?:step|tab|aud|col|shot|cmp|kpi|filter|label|gear|tl|rail|help)_[a-z_]+)'/g)) used.add(m[1])
 // dynamic prefixes
 for (const [prefix, vals] of Object.entries({
   'type.': ['phone', 'laptop', 'tablet', 'charger', 'crt_monitor', 'lcd_monitor', 'router', 'set_top_box'],
@@ -23,8 +23,14 @@ for (const [prefix, vals] of Object.entries({
   'status.': ['open', 'listed', 'sold', 'held'],
   'diff.': ['easy', 'medium', 'hard'],
   'role.': ['worker', 'recycler', 'repairer', 'auditor'],
+  'bid.': ['open', 'accepted', 'rejected', 'expired'],
+  'flag_why.': ['duplicate_photo', 'weight_outlier', 'gps_far', 'low_safety', 'rapid_repeat', 'recheck_requested'],
 })) for (const v of vals) used.add(prefix + v)
 
+for (const k of ['none','recheck','held','listed','open','sold']) { used.add('next_'+k+'_t'); used.add('next_'+k+'_b') }
+for (const k of ['low','mid','high']) used.add('conf_'+k)
+for (const k of ['top','under','back','label']) used.add('shot_'+k+'_help')
+for (const k of ['normal','large','xlarge']) used.add('text_'+k)
 const missing = [...used].filter((k) => !/[._]$/.test(k) && !defined.has(k))
 const empty = [...strings.matchAll(/'?([A-Za-z_.]+)'?:\s*\[\s*'\s*'|,\s*'\s*'\s*\]/g)]
 console.log(`keys defined: ${defined.size}, keys used: ${used.size}`)

@@ -12,7 +12,7 @@ export function Tag({ children, tone = 'plain' }: { children: ReactNode; tone?: 
     amber: 'border-ink bg-amber text-ink',
     ink: 'border-ink bg-ink text-paper',
   }
-  return <span className={`inline-flex items-center border px-1.5 py-0.5 font-mono text-[12px] font-semibold uppercase leading-tight tracking-wide ${tones[tone]}`}>{children}</span>
+  return <span className={`inline-flex items-center border px-1.5 py-0.5 font-mono text-sm font-semibold uppercase leading-tight tracking-wide ${tones[tone]}`}>{children}</span>
 }
 
 export function SampleTag() {
@@ -72,7 +72,7 @@ export function Screen({ title, back = true, brand = false, children, tabs = tru
   return (
     <div className={tabs ? 'pb-24' : 'pb-8'}>
       <Header title={title} back={back} brand={brand} />
-      <main className="px-4 pt-4">{children}</main>
+      <main id="main" className="screen-enter px-4 pt-4">{children}</main>
     </div>
   )
 }
@@ -89,7 +89,7 @@ export function H2({ children, right }: { children: ReactNode; right?: ReactNode
 export function Banner({ tone = 'plain', icon = 'info', children }: { tone?: 'plain' | 'bad' | 'amber' | 'ok'; icon?: string; children: ReactNode }) {
   const c = { plain: 'border-ink', bad: 'border-bad text-bad', amber: 'border-ink bg-amber/25', ok: 'border-ok text-ok' }[tone]
   return (
-    <div role={tone === 'bad' ? 'alert' : 'note'} className={`flex gap-2 border-2 px-3 py-2 text-sm font-medium ${c}`}>
+    <div role={tone === 'bad' ? 'alert' : 'note'} className={`flex gap-2 border-2 px-3 py-2.5 text-base font-medium leading-snug ${c}`}>
       <Icon name={icon} size={20} className="mt-0.5 shrink-0" />
       <div>{children}</div>
     </div>
@@ -100,7 +100,12 @@ export const Rule = ({ children }: { children: ReactNode }) => <ul className="di
 
 export function Loading() {
   const { t } = useLang()
-  return <p className="py-10 text-center text-sm text-mute" role="status">{t('loading')}</p>
+  return (
+    <div role="status" className="animate-pulse space-y-3 py-6">
+      {[100, 92, 84].map((w) => <div key={w} className="h-12 border border-hair bg-sunk" style={{ width: `${w}%` }} />)}
+      <span className="sr-only">{t('loading')}</span>
+    </div>
+  )
 }
 
 export function ErrorNote({ message }: { message: string }) {

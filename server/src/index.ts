@@ -1,4 +1,5 @@
 import { existsSync, rmSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { openDb } from './db.ts';
 import { seed } from './seed.ts';
@@ -7,7 +8,7 @@ import { buildApp } from './app.ts';
 
 const DB_FILE = 'urban-mine.db';
 /** Bump when seed data changes: an older sample database is discarded and reseeded on start. */
-const SEED_VERSION = 3;
+const SEED_VERSION = 8;
 
 if (existsSync(DB_FILE)) {
   const probe = new DatabaseSync(DB_FILE);
@@ -19,7 +20,7 @@ if (existsSync(DB_FILE)) {
 const db = openDb(DB_FILE);
 if (!db.prepare('SELECT 1 FROM user LIMIT 1').get()) {
   seed(db);
-  seedDemo(db);
+  seedDemo(db, new Date(), resolve('uploads'));
   db.exec(`PRAGMA user_version = ${SEED_VERSION}`);
 }
 

@@ -12,5 +12,8 @@ export function openDb(path = 'urban-mine.db'): DatabaseSync {
   // migration: older databases lack lot.held_from
   const cols = db.prepare('PRAGMA table_info(lot)').all() as { name: string }[];
   if (!cols.some((c) => c.name === 'held_from')) db.exec('ALTER TABLE lot ADD COLUMN held_from TEXT');
+  // migration: older databases lack repair_job note and dates
+  const jobCols = (db.prepare('PRAGMA table_info(repair_job)').all() as { name: string }[]).map((c) => c.name);
+  for (const c of ['note', 'created_at', 'completed_at']) if (!jobCols.includes(c)) db.exec(`ALTER TABLE repair_job ADD COLUMN ${c} TEXT`);
   return db;
 }

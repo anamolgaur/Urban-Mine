@@ -8,8 +8,8 @@ export default function Photo({ hash, className = '' }: { hash: string; classNam
   if (bad) {
     return (
       <div className={`flex aspect-[4/3] flex-col items-center justify-center border border-dashed border-ink bg-sunk p-1 text-center ${className}`}>
-        <span className="text-[12px] font-semibold">{t('no_image')}</span>
-        <span className="num text-[12px] text-mute">{hash.slice(0, 8)}</span>
+        <span className="text-sm font-semibold">{t('no_image')}</span>
+        <span className="num text-sm text-mute">{hash.slice(0, 8)}</span>
       </div>
     )
   }

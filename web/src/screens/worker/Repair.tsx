@@ -36,7 +36,7 @@ function GuideCard({ g }: { g: Guide }) {
   )
 }
 
-function Fix() {
+export function Fix() {
   const { t } = useLang()
   const { data, error, loading } = useApi<Guide[]>('/api/repair/guides')
   return (
@@ -49,7 +49,7 @@ function Fix() {
   )
 }
 
-function Nearby() {
+export function Nearby() {
   const { t } = useLang()
   const { data, error, loading } = useApi<Listing[]>('/api/repair/listings')
   return (
@@ -93,7 +93,7 @@ export default function Repair() {
       <div role="tablist" aria-label={t('repair_title')} className="grid grid-cols-3 border border-ink">
         {tabs.map(([k, label]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={`min-h-12 border-r border-ink px-1 text-[13px] font-bold last:border-r-0 ${tab === k ? 'bg-ink text-paper' : 'bg-white'}`}>{t(label)}</button>
+            className={`min-h-12 border-r border-ink px-1 text-sm font-bold last:border-r-0 ${tab === k ? 'bg-ink text-paper' : 'bg-white'}`}>{t(label)}</button>
         ))}
       </div>
       {tab === 'fix' && <Fix />}

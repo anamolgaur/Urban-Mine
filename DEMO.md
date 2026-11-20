@@ -24,14 +24,15 @@ Prepare before you start: the browser has no camera, so on a laptop the "photo" 
 
 ## 1:50 – Verified lot and sale (45 s)
 10. Create lot: enter weight, add location. The **record hash** appears. Read the honest line: "proves it was not changed afterwards, not that the first entry was true."
-11. **Put on sale**, then **Demo: add sample offers**. Offers appear with countdowns. Accept the best: confirm, then the **simulated UPI** screen.
+11. **Put on sale**, then **Demo: add sample offers**. Offers appear with countdowns. **Reject** one, then accept the best: confirm, then the **simulated UPI** screen.
 12. **View receipt** then **Download PDF**: seller name and address, lot id, weight, price, hash, and the "check against CPCB" label.
 
 ## 2:35 – Auditor (25 s)
 13. Profile → Demo accounts → **SAMPLE Auditor Priya** (opens the console).
 14. KPI strip and lot table: flags for duplicate photo, unusual weight, far from workshop, skipped safety steps, many lots quickly.
 15. Open the duplicate-photo lot: findings and the photo comparison. Tap **Hold payout**. (As the worker, accepting is now blocked.)
-16. Mention the editable rate table with stale rows, and the safety content editor.
+16. Mention the editable rate table with stale rows, and the safety content editor. Show the **hash-chain verification** panel on any lot.
+17. Optional: switch to **SAMPLE Recycler Alpha** for the marketplace table with photo evidence, and **SAMPLE Repairer Mohan** for the jobs dashboard.
 
 ## Close (10 s)
 "Worker-first, honest about what is sample and mocked, and ready for an NGO partner, expert safety review and real rate sources."

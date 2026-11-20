@@ -5,7 +5,7 @@ export type PackSource = { device_type: string; gear: L[]; steps: Step[] };
 
 export const SAFETY_VERSION = 'draft-0.1';
 export const EMERGENCY: L = { en: 'Smoke, heat or fire? Move away and call 112.', hi: 'धुआँ, गर्मी या आग? दूर हटें और 112 पर कॉल करें।' };
-export const DRAFT_BANNER: L = { en: 'DRAFT CONTENT, EXPERT REVIEW REQUIRED BEFORE FIELD USE', hi: 'ड्राफ़्ट सामग्री, फ़ील्ड उपयोग से पहले विशेषज्ञ समीक्षा ज़रूरी' };
+export const DRAFT_BANNER: L = { en: 'DRAFT CONTENT — EXPERT REVIEW REQUIRED BEFORE FIELD USE', hi: 'ड्राफ़्ट सामग्री — फ़ील्ड उपयोग से पहले विशेषज्ञ समीक्षा ज़रूरी' };
 
 const GLOVES: L = { en: 'Cut-resistant gloves', hi: 'कट-रोधी दस्ताने' };
 const GOGGLES: L = { en: 'Safety glasses', hi: 'सुरक्षा चश्मा' };

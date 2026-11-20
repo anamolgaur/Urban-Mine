@@ -3,6 +3,7 @@ import { useSession } from './lib/session.tsx'
 import { useLang } from './lib/i18n.tsx'
 import Shell from './components/Shell.tsx'
 import { Banner, Btn } from './components/ui.tsx'
+import Boundary from './components/Boundary.tsx'
 import Home from './screens/worker/Home.tsx'
 import Scan from './screens/worker/Scan.tsx'
 import Confirm from './screens/worker/Confirm.tsx'
@@ -13,6 +14,7 @@ import Offers from './screens/worker/Offers.tsx'
 import Receipt from './screens/worker/Receipt.tsx'
 import Lots from './screens/worker/Lots.tsx'
 import Repair from './screens/worker/Repair.tsx'
+import { RepairerJobs, RepairerListing, RepairerBrowse } from './screens/worker/RepairerHome.tsx'
 import Profile, { homeFor } from './screens/worker/Profile.tsx'
 import Recycler from './screens/recycler/Recycler.tsx'
 import Auditor from './screens/auditor/Auditor.tsx'
@@ -35,6 +37,8 @@ export default function App() {
   const start = homeFor(role)
 
   return (
+    <Boundary>
+    <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:bg-ink focus:px-3 focus:py-2 focus:font-semibold focus:text-paper">{t('skip_main')}</a>
     <Routes>
       <Route path="/auditor/*" element={role === 'auditor' ? <Auditor /> : <Navigate to={start} replace />} />
       <Route path="/recycler" element={role === 'recycler' ? <Recycler /> : <Navigate to={start} replace />} />
@@ -49,10 +53,13 @@ export default function App() {
         <Route path="offers/:id" element={<Offers />} />
         <Route path="receipt/:id" element={<Receipt />} />
         <Route path="lots" element={<Lots />} />
-        <Route path="repair" element={<Repair />} />
+        <Route path="repair" element={role === 'repairer' ? <RepairerJobs /> : <Repair />} />
+        <Route path="repair/listing" element={role === 'repairer' ? <RepairerListing /> : <Navigate to="/repair" replace />} />
+        <Route path="repair/browse" element={role === 'repairer' ? <RepairerBrowse /> : <Navigate to="/repair" replace />} />
         <Route path="profile" element={<Profile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Boundary>
   )
 }

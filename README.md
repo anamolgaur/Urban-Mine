@@ -28,11 +28,17 @@ Built as a hackathon prototype for *Save the Kingdom, Save the Planet* (PS01 Int
 | Repair centre | Fix-it-yourself guides (easy / medium / hard, tools), nearby repairers, and an "Offer your services" flow. A repair count only rises when a job has before and after photos. |
 | Auditor console | Lot table, KPI strip, flagged lot detail with photo comparison and findings, Hold payout, Request re-check, editable rate table (stale rows highlighted), editable safety content. |
 | Fraud flags | Rule-based: duplicate photo hash across lots, weight far from expected, GPS far from the registered workshop, low safety-step completion, rapid repeat lots. |
-| Profile | Language switch, simulated identity note, **Delete my data**, demo account switcher. |
+| Profile | Language switch, text size (normal, large, extra large), help and emergency number, simulated identity note, **Delete my data**, demo account switcher. |
+| Recycler marketplace | Searchable, filterable table of verified lots with photo evidence, seller location, a SAMPLE expected value, bid form, active offers and purchase history with receipts. |
+| Repairer dashboard | Jobs with before and after photos, repair history, statistics, listing management, and a browse tab. Has its own bottom navigation. |
 
 ### What the hash chain proves
 
 It proves a record was **not altered after it was created**. It does **not** prove the first entry was true. The UI and receipt say so.
+
+## Design system
+
+Editorial and quiet: warm paper, ink, hairline rules, square mono tags, one amber accent per screen. Reusable pieces live in `web/src/components/` (`ui.tsx`, `kit.tsx` for status chips, stats, meters, the progress rail, empty states and skeletons, and `Illustration.tsx` for the line drawings). Text is never below 14 px, touch targets are at least 44 px, and status is always shown with an icon or text as well as colour. The sweep that checks this (text size, touch targets, overflow) was run on every screen in English and Hindi, at the largest text size too.
 
 ## Architecture
 
@@ -68,7 +74,7 @@ npm run dev:web        # app on http://localhost:5173
 Open `http://localhost:5173` on a phone on the same Wi-Fi using the "Network" address Vite prints. Camera capture and geolocation need HTTPS on a phone outside localhost; for a real device test use a tunnel or `vite --https`.
 
 ```bash
-npm test               # 60 server tests
+npm test               # 69 server tests
 npm run check:strings  # every UI string has English and Hindi
 npm run build:web      # production build with service worker
 ```

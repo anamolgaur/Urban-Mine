@@ -56,6 +56,15 @@ export function acceptBid(db: DatabaseSync, bidId: string, userId: string, now =
   return { lot_id: bid.lot_id, bid_id: bidId, amount: bid.amount };
 }
 
+/** Worker turns down an offer. */
+export function rejectBid(db: DatabaseSync, bidId: string, userId: string, now = new Date()) {
+  expireBids(db, now);
+  const bid = db.prepare('SELECT b.status, l.user_id FROM bid b JOIN lot l ON l.id = b.lot_id WHERE b.id = ?').get(bidId) as Row | undefined;
+  if (!bid || bid.user_id !== userId) throw new Error('Offer not found');
+  if (bid.status !== 'open') throw new Error('Offer is ' + bid.status);
+  db.prepare("UPDATE bid SET status = 'rejected' WHERE id = ?").run(bidId);
+}
+
 export function holdLot(db: DatabaseSync, lotId: string) {
   const lot = db.prepare('SELECT status FROM lot WHERE id = ?').get(lotId) as Row | undefined;
   if (!lot) throw new Error('Lot not found');
@@ -71,4 +80,16 @@ export function releaseLot(db: DatabaseSync, lotId: string) {
 
 export function requestRecheck(db: DatabaseSync, lotId: string, note: string) {
   db.prepare("INSERT INTO flag VALUES (?,?,?,?,?)").run(randomUUID(), lotId, 'recheck_requested', note || 'Auditor asked for a re-check', 'open');
+}
+
+/** All of one recycler's bids with a lot summary: powers "My offers" and "Purchases". */
+export function bidsFor(db: DatabaseSync, recyclerId: string, now = new Date()) {
+  expireBids(db, now);
+  const sql = `SELECT b.id, b.lot_id, b.amount, b.pickup_terms, b.expires_at, b.status, l.items, l.weight_kg, l.hash, l.status AS lot_status,
+    u.name AS worker_name FROM bid b JOIN lot l ON l.id = b.lot_id LEFT JOIN user u ON u.id = l.user_id WHERE b.recycler_id = ? ORDER BY b.rowid DESC`;
+  return (db.prepare(sql).all(recyclerId) as Row[]).map((r) => ({
+    id: r.id, lot_id: r.lot_id, amount: r.amount, pickup_terms: r.pickup_terms, expires_at: r.expires_at, status: r.status,
+    items: JSON.parse(r.items), weight_kg: r.weight_kg, short_hash: String(r.hash).slice(0, 8), lot_status: r.lot_status,
+    worker_name: r.worker_name ?? 'Deleted user', seconds_left: Math.max(0, Math.round((Date.parse(r.expires_at) - now.getTime()) / 1000)),
+  }));
 }
