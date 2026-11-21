@@ -11,6 +11,10 @@ export type Flow = {
   modelId: string | null
   qty: number
   works: boolean | null
+  /** Working devices: which listed model (resale table), its wear, or the worker's own price if not listed. */
+  resaleId: string | null
+  wear: 'good' | 'fair' | 'poor'
+  customPrice: number | null
   estimate: Estimate | null
   done: Record<string, string | true> // safety step id -> photo hash (or true when no photo was needed)
   extraHashes: string[]
@@ -18,7 +22,7 @@ export type Flow = {
   /** Condition grade: the worker's own, or an AI suggestion from the photos (`aiGrade`) they may have changed. */
   condition: { grade: Grade; issues: string[]; confidence: number; source: 'ai' | 'worker'; aiGrade: Grade | null } | null
 }
-export const emptyFlow: Flow = { hint: null, images: [null, null, null, null], labelText: '', scan: null, type: null, modelId: null, qty: 1, works: null, estimate: null, done: {}, extraHashes: [], lot: null, condition: null }
+export const emptyFlow: Flow = { hint: null, images: [null, null, null, null], labelText: '', scan: null, type: null, modelId: null, qty: 1, works: null, resaleId: null, wear: 'good', customPrice: null, estimate: null, done: {}, extraHashes: [], lot: null, condition: null }
 
 type Ctx = { flow: Flow; patch: (p: Partial<Flow>) => void; setImage: (i: number, url: string) => void; reset: () => void }
 const FlowCtx = createContext<Ctx>({ flow: emptyFlow, patch: () => {}, setImage: () => {}, reset: () => {} })

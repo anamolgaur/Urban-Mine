@@ -23,10 +23,10 @@ export default function Auditor() {
   const nav = useNavigate()
   return (
     <div className="min-h-dvh bg-paper">
-      <header className="border-b border-ink bg-paper">
+      <header className="border-b border-hair bg-paper">
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
           <span className="inline-flex h-8 w-8 items-center justify-center bg-ink"><Icon name="lots" size={18} className="text-amber" /></span>
-          <h1 className="flex-1 font-cond text-xl font-bold uppercase tracking-wide">{t('auditor_title')}</h1>
+          <h1 className="flex-1 text-xl font-bold">{t('auditor_title')}</h1>
           <LangToggle />
           {authEnabled
             ? <Btn full={false} variant="secondary" icon="lock" onClick={signOut}>{t('sign_out')}</Btn>

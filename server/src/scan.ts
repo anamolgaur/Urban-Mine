@@ -15,7 +15,7 @@ export async function runScan(db: Db, deps: { classifier: Classifier; ocr: Ocr }
   const match = matchModel(ocrText, await loadModels(db), { type: known });
 
   // A model match only sets the device type if the classifier had no better idea.
-  const type = known ?? (match.kind === 'model' ? match.best.model.type : 'unknown');
+  const type = known ?? (match.kind === 'model' ? match.best.model.type : match.candidates[0]?.model.type ?? 'unknown');
   const scanId = randomUUID();
   await db.prepare('INSERT INTO scan (id,user_id,type_pred,type_conf,model_id,model_conf,photos,ocr_text,created_at) VALUES (?,?,?,?,?,?,?,?,?)').run(
     scanId, input.userId, type, guess.confidence,

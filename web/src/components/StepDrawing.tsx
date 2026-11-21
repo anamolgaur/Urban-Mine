@@ -26,7 +26,7 @@ function Scene({ kind }: { kind: string }) {
 export default function StepDrawing({ id }: { id: string }) {
   const kind = id.split('-').pop() ?? ''
   return (
-    <svg viewBox="0 0 170 110" className="w-full border border-ink bg-white" role="img" aria-label={`Drawing: ${kind}`}>
+    <svg viewBox="0 0 170 110" className="w-full rounded-2xl border border-hair bg-white" role="img" aria-label={`Drawing: ${kind}`}>
       <Scene kind={kind} />
     </svg>
   )

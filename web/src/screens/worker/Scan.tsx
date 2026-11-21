@@ -5,8 +5,9 @@ import { useFlow } from '../../lib/flow.tsx'
 import { api } from '../../lib/api.ts'
 import { DEVICE_TYPES } from '../../lib/devices.ts'
 import { fileToDataUrl } from '../../lib/image.ts'
+import { recogniseType, warmUp } from '../../lib/recognise.ts'
 import type { ScanResult } from '../../lib/types.ts'
-import { Screen, H2, Btn, ErrorNote, inputCls } from '../../components/ui.tsx'
+import { Screen, H2, Btn, ErrorNote, Banner, inputCls } from '../../components/ui.tsx'
 import { Rail } from '../../components/kit.tsx'
 import Illustration from '../../components/Illustration.tsx'
 import Icon from '../../components/Icon.tsx'
@@ -22,7 +23,7 @@ export function TypeGrid({ value, onPick, allowUnsure = false }: { value: string
         const sel = ty === '__unsure' ? value === null : value === ty
         return (
           <button key={ty} role="radio" aria-checked={sel} onClick={() => onPick(ty === '__unsure' ? null : ty)}
-            className={`flex min-h-14 items-center gap-2 border px-3 text-left text-base font-semibold ${sel ? 'border-ink bg-ink text-paper' : 'border-ink bg-white'}`}>
+            className={`flex min-h-14 items-center gap-2 border px-3 text-left text-base font-semibold ${sel ? 'border-brand bg-brand text-onbrand' : 'border-hair bg-white'}`}>
             <Icon name={ty === '__unsure' ? 'info' : ty} size={22} />
             <span className="flex-1">{ty === '__unsure' ? t('not_sure') : t('type.' + ty)}</span>
             {sel && <Icon name="check" size={18} />}
@@ -44,6 +45,10 @@ export default function Scan() {
   const [active, setActive] = useState(firstEmpty === -1 ? 0 : firstEmpty)
   const taken = flow.images.filter(Boolean).length
   const img = flow.images[active]
+  // on-device photo recognition: suggests the device type, the worker can always change it
+  const [seen, setSeen] = useState<{ type: string; label: string } | null>(null)
+  const [looking, setLooking] = useState(false)
+  useEffect(() => { warmUp() }, [])
 
   // The three stages are real work on the server (upload, OCR, matching); the timer only paces the display.
   useEffect(() => {
@@ -55,7 +60,16 @@ export default function Scan() {
   async function onFile(f: File | undefined) {
     if (!f) return
     try {
-      setImage(active, await fileToDataUrl(f))
+      const url = await fileToDataUrl(f)
+      setImage(active, url)
+      if (!seen) {
+        setLooking(true)
+        recogniseType(url).then((g) => {
+          if (!g) return
+          setSeen({ type: g.type, label: g.label })
+          if (!flow.hint) patch({ hint: g.type })
+        }).catch(() => {}).finally(() => setLooking(false))
+      }
       const nextEmpty = flow.images.findIndex((x, j) => !x && j !== active)
       if (nextEmpty !== -1) setActive(nextEmpty)
     } catch (e) { setErr((e as Error).message) }
@@ -65,7 +79,7 @@ export default function Scan() {
     setBusy(true); setErr(null)
     try {
       const res = await api<ScanResult>('/api/scan', { body: { images: flow.images.filter(Boolean), hint: flow.hint ?? undefined, ocrText: flow.labelText || undefined } })
-      patch({ scan: res, type: res.type === 'unknown' ? null : res.type, modelId: null, estimate: null, done: {}, extraHashes: [], lot: null, works: null, qty: 1, condition: null })
+      patch({ scan: res, type: res.type === 'unknown' ? null : res.type, modelId: null, estimate: null, done: {}, extraHashes: [], lot: null, works: null, resaleId: null, wear: 'good', customPrice: null, qty: 1, condition: null })
       nav('/scan/confirm')
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
@@ -73,7 +87,7 @@ export default function Scan() {
   if (busy) {
     return (
       <Screen title={t('scan_title')} back={false} tabs={false}>
-        <div className="mt-6 border-2 border-ink bg-white p-5" role="status" aria-live="polite">
+        <div className="mt-6 rounded-3xl bg-white shadow-card p-5" role="status" aria-live="polite">
           <Illustration art="scan" className="mx-auto h-28 w-44" />
           <p className="mt-2 text-center text-xl font-bold">{t('checking')}</p>
           <p className="mb-5 mt-1 text-center text-base text-mute">{t('reading_label')}</p>
@@ -91,7 +105,7 @@ export default function Scan() {
         <H2>{t('take_photos')}</H2>
         <p className="mb-3 text-base text-mute">{t('photos_help')}</p>
 
-        <div className="border-2 border-ink bg-white">
+        <div className="rounded-3xl bg-white shadow-card">
           <div className="relative flex aspect-[4/3] items-center justify-center overflow-hidden bg-sunk">
             {img ? <img src={img} alt={t(SHOTS[active])} className="h-full w-full object-cover" /> : <Illustration art="scan" className="h-32 w-48" />}
             <span className="num absolute left-0 top-0 bg-ink px-2 py-1 text-sm font-semibold text-paper">{t('photo_n_of', { n: active + 1, m: 4 })}</span>
@@ -99,7 +113,7 @@ export default function Scan() {
           <div className="p-3">
             <p className="text-lg font-bold">{t(SHOTS[active])}</p>
             <p className="text-base leading-snug text-mute">{t(SHOTS[active] + '_help')}</p>
-            <label className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 border border-ink bg-amber px-4 font-semibold focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-ink">
+            <label className="mt-3 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 border border-hair bg-amber px-4 font-semibold focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-ink">
               <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => { void onFile(e.target.files?.[0]); e.target.value = '' }} />
               <Icon name="camera" size={22} />{img ? t('retake') : t('take_photo')}
             </label>
@@ -110,7 +124,7 @@ export default function Scan() {
           {SHOTS.map((k, i) => (
             <li key={k}>
               <button onClick={() => setActive(i)} aria-label={`${t(k)}${flow.images[i] ? ' ✓' : ''}`} aria-current={i === active}
-                className={`relative flex aspect-square w-full items-center justify-center overflow-hidden border-2 ${i === active ? 'border-ink bg-amber' : 'border-hair bg-white'}`}>
+                className={`relative flex aspect-square w-full items-center justify-center overflow-hidden border-2 ${i === active ? 'border-hair bg-amber' : 'border-hair bg-white'}`}>
                 {flow.images[i] ? <img src={flow.images[i]!} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <span className="num text-lg font-bold">{i + 1}</span>}
                 {flow.images[i] && <span className="absolute bottom-0 right-0 bg-ink p-0.5 text-paper"><Icon name="check" size={14} /></span>}
               </button>
@@ -119,6 +133,8 @@ export default function Scan() {
         </ul>
 
         <H2>{t('what_is_it')}</H2>
+        {looking && <p className="mb-2 text-base text-mute" role="status">{t('ai_looking')}</p>}
+        {seen && <div className="mb-2"><Banner icon="info">{t('ai_seen', { type: t('type.' + seen.type) })}</Banner></div>}
         <TypeGrid value={flow.hint} onPick={(hint) => patch({ hint })} allowUnsure />
 
         <H2>{t('label_text')}</H2>
@@ -128,7 +144,7 @@ export default function Scan() {
         {err && <ErrorNote message={err} />}
       </div>
 
-      <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-ink bg-paper p-3">
+      <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-hair bg-paper p-3">
         <Btn onClick={submit} disabled={taken === 0} icon="scan">{t('check_device')}{taken > 0 ? ` · ${t('photos_added', { n: taken })}` : ''}</Btn>
         {taken === 0 && <p className="mt-1 text-center text-sm text-mute">{t('need_one_photo')}</p>}
       </div>

@@ -25,7 +25,7 @@ type Sort = 'new' | 'weight' | 'bid'
 const openFlags = (l: Lot) => l.flags.filter((f) => f.status === 'open')
 const itemsTitle = (items: LotItem[], t: (k: string) => string) => items.map((i) => `${i.qty} × ${t('type.' + i.type)}`).join(', ')
 const Th = ({ children, right = false }: { children: React.ReactNode; right?: boolean }) => <th className={`px-3 py-2 font-semibold ${right ? 'text-right' : ''}`}>{children}</th>
-const THEAD = 'border-b border-ink bg-white font-mono text-sm uppercase'
+const THEAD = 'border-b border-hair bg-white text-sm'
 
 function useTick(ms = 1000) {
   const [n, setN] = useState(0)
@@ -46,7 +46,7 @@ function BidForm({ lot, onDone }: { lot: MarketLot; onDone: () => void }) {
     catch (e) { setErr((e as Error).message) } finally { setBusy(false) }
   }
   return (
-    <div className="border-t border-ink pt-3">
+    <div className="border-t border-hair pt-3">
       <div className="grid grid-cols-2 gap-3">
         <Field label={t('bid_amount')}><input className={`${inputCls} num`} inputMode="numeric" value={amount} onChange={(e) => setAmount(e.target.value.replace(/\D/g, ''))} /></Field>
         <Field label={t('bid_valid')}>
@@ -63,14 +63,14 @@ function BidForm({ lot, onDone }: { lot: MarketLot; onDone: () => void }) {
 function Detail({ lot, onDone }: { lot: MarketLot; onDone: () => void }) {
   const { t } = useLang()
   return (
-    <aside className="border-2 border-ink bg-white" aria-label={t('lot_detail')}>
-      <div className="border-b border-ink p-3">
-        <p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('lot_detail')}</p>
+    <aside className="rounded-3xl bg-white shadow-card" aria-label={t('lot_detail')}>
+      <div className="border-b border-hair p-3">
+        <p className="text-sm font-medium text-mute">{t('lot_detail')}</p>
         <p className="text-xl font-bold leading-tight">{lotTitle(lot, t)}</p>
         <p className="num text-sm text-mute">{t('lot_id')} {lot.id.slice(0, 8).toUpperCase()} · #{lot.short_hash}</p>
       </div>
       <div className="p-3">
-        <p className="mb-1 text-sm font-semibold uppercase tracking-wide text-mute">{t('photo_evidence')} · {t('photos_n', { n: lot.photo_hashes.length })}</p>
+        <p className="mb-1 text-sm font-medium text-mute">{t('photo_evidence')} · {t('photos_n', { n: lot.photo_hashes.length })}</p>
         <div className="grid grid-cols-3 gap-2">{lot.photo_hashes.slice(0, 6).map((h) => <Photo key={h} hash={h} />)}</div>
         <dl className="mt-3 divide-y divide-hair">
           <KV k={t('col_seller')} v={lot.worker_name} />
@@ -125,14 +125,14 @@ function Market() {
             <option value="new">{t('sort_newest')}</option><option value="weight">{t('sort_weight')}</option><option value="bid">{t('sort_bid')}</option>
           </select>
         </Field></div>
-        <label className="mb-4 flex min-h-12 cursor-pointer items-center gap-2 border border-ink bg-white px-3 text-base font-semibold">
+        <label className="mb-4 flex min-h-12 cursor-pointer items-center gap-2 rounded-2xl border border-hair px-3 text-base font-semibold">
           <input type="checkbox" checked={clean} onChange={(e) => setClean(e.target.checked)} className="h-5 w-5 accent-ink" />{t('no_flags_only')}
         </label>
       </div>
       <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label={t('col_category')}>
         {['all', ...cats].map((c) => (
           <button key={c} aria-pressed={cat === c} onClick={() => setCat(c)}
-            className={`inline-flex min-h-11 items-center gap-1 border border-ink px-3 text-base font-semibold ${cat === c ? 'bg-ink text-paper' : 'bg-white'}`}>
+            className={`inline-flex min-h-11 items-center gap-1 rounded-2xl border border-hair px-3 text-base font-semibold ${cat === c ? 'bg-brand text-onbrand' : 'bg-white'}`}>
             {cat === c && <Icon name="check" size={16} />}{c === 'all' ? t('all_types') : t('type.' + c)}
           </button>
         ))}
@@ -142,12 +142,12 @@ function Market() {
         <EmptyState art="lots" title={t('no_match')} body={t('no_market')} />
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
-          <div className="overflow-x-auto border border-ink bg-white">
+          <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
             <table className="w-full min-w-[760px] text-left text-base">
               <thead><tr className={THEAD}><Th>{t('col_lot')}</Th><Th>{t('col_category')}</Th><Th right>{t('col_weight')}</Th><Th>{t('col_seller')}</Th><Th>{t('col_evidence')}</Th><Th right>{t('col_expected')}</Th><Th right>{t('col_topbid')}</Th></tr></thead>
               <tbody>
                 {rows.map((l) => (
-                  <tr key={l.id} onClick={() => setSel(l.id)} className={`cursor-pointer border-b border-hair ${sel === l.id ? 'bg-amber/25' : 'hover:bg-sunk'}`}>
+                  <tr key={l.id} onClick={() => setSel(l.id)} className={`cursor-pointer border-b border-hair ${sel === l.id ? 'bg-gold-soft' : 'hover:bg-sunk'}`}>
                     <td className="px-3 py-3">
                       <button onClick={() => setSel(l.id)} aria-pressed={sel === l.id} className="num min-h-11 text-left font-semibold underline underline-offset-4">#{l.short_hash}</button>
                       <div className="text-sm text-mute">{dateShort(l.created_at)}</div>
@@ -192,7 +192,7 @@ function MyOffers() {
   return (
     <div>
       {active.length === 0 ? <EmptyState art="offers" title={t('no_offers')} /> : (
-        <div className="overflow-x-auto border border-ink bg-white">
+        <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
           <table className="w-full min-w-[640px] text-left text-base">
             <thead><tr className={THEAD}><Th>{t('col_lot')}</Th><Th>{t('col_seller')}</Th><Th right>{t('col_mybid')}</Th><Th>{t('col_terms')}</Th><Th right>{t('col_timeleft')}</Th></tr></thead>
             <tbody>
@@ -242,7 +242,7 @@ function Purchases() {
   return won.length === 0 ? <EmptyState art="lots" title={t('no_purchases')} /> : (
     <>
       {err && <ErrorNote message={err} />}
-      <div className="overflow-x-auto border border-ink bg-white">
+      <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
         <table className="w-full min-w-[640px] text-left text-base">
           <thead><tr className={THEAD}><Th>{t('col_lot')}</Th><Th>{t('col_seller')}</Th><Th right>{t('col_weight')}</Th><Th right>{t('col_amount')}</Th><Th>{t('col_receipt')}</Th></tr></thead>
           <tbody>
@@ -277,7 +277,7 @@ export default function Recycler() {
   return (
     <div className="min-h-dvh bg-paper pb-10">
       <Header title={t('recycler_title')} back={false} brand />
-      <nav aria-label={t('recycler_title')} className="border-b border-ink">
+      <nav aria-label={t('recycler_title')} className="border-b border-hair">
         <div role="tablist" className="mx-auto flex max-w-7xl gap-1 overflow-x-auto px-4">
           {tabs.map(([k, label]) => (
             <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
@@ -287,7 +287,7 @@ export default function Recycler() {
       </nav>
       <main id="main" className="screen-enter mx-auto max-w-7xl px-4 pt-4">
         <Banner icon="info">{t('recycler_note')}</Banner>
-        <dl className="mt-3 grid grid-cols-3 gap-3 border border-ink bg-white p-3">
+        <dl className="mt-3 grid grid-cols-3 gap-3 rounded-2xl border border-hair bg-white p-3">
           <Stat label={t('sum_available')} value={lots.data?.length ?? '–'} />
           <Stat label={t('sum_active')} value={bids.data ? active : '–'} />
           <Stat label={t('sum_bought')} value={bids.data ? `${bought.length} · ${inr(bought.reduce((s, b) => s + b.amount, 0))}` : '–'} note={<SampleTag />} />

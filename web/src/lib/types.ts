@@ -7,7 +7,7 @@ export type Approval = 'pending' | 'approved' | 'rejected'
 export type User = { id: string; role: Role; name: string; phone: string | null; language: Lang; workshop_id: string | null; approval: Approval; kyc_status: string }
 export type Me = { user: User; workshop: { id: string; name: string; address: string; lat: number | null; lng: number | null } | null; city: string }
 /** /api/me for someone who has signed in but not finished account setup yet. */
-export type NeedsOnboarding = { user: null; needs_onboarding: true; phone: string | null }
+export type NeedsOnboarding = { user: null; needs_onboarding: true; phone: string | null; email?: string | null }
 export type ModelRef = { id: string; type: string; brand: string; model: string }
 export type Candidate = { model: ModelRef; confidence: number; matched: string[] }
 export type MatchResult =
@@ -18,8 +18,9 @@ export type ScanResult = { scanId: string; type: string; typeConfidence: number;
 export type RateInfo = { rate: number; prev: number | null; change: number | null; updated_at: string; source: string }
 export type Estimate = {
   lines: { material: string; grams: number; value: number }[]
-  total: number; low: number; high: number; basis: 'model' | 'type'; sample: true; weight_kg: number
+  total: number; low: number; high: number; basis: 'model' | 'type' | 'resale'; sample: true; weight_kg: number
   condition?: { grade: Grade; factor: number }
+  resale?: { model: ResaleModel | null; condition: 'good' | 'fair' | 'poor' }
   rates: Record<string, RateInfo>
 }
 export type RepairComparison = { recommend: 'repair' | 'recycle'; repair_cost: number; resale_if_repaired: number; recycle_value: number; net_if_repaired: number; sample: true }
@@ -32,9 +33,12 @@ export type Lot = {
   id: string; user_id: string; worker_name: string; items: LotItem[]; weight_kg: number; steps_done: number; steps_total: number
   photo_hashes: string[]; gps: { lat: number; lng: number } | null; hash: string; prev_hash: string; short_hash: string
   status: LotStatus; created_at: string; flags: Flag[]; chain_ok: boolean; sale_amount: number | null
+  open_offers?: number; top_offer?: number | null
 }
 export type FairVerdict = 'below' | 'within' | 'above'
 export type Offer = { id: string; recycler_name: string; amount: number; pickup_terms: string; expires_at: string; seconds_left: number; fair?: { verdict: FairVerdict; low: number; high: number } | null }
 export type Guide = { id: string; fault: L; device_type: string; difficulty: 'easy' | 'medium' | 'hard'; tools: L[]; steps: L[] }
 export type Listing = { id: string; name: string; skills: string[]; area: string; start_price: number; hours: string; verified_count: number }
 export type Job = { id: string; before_photo: string; after_photo: string | null; status: 'in_progress' | 'completed'; note: string | null; created_at: string | null; completed_at: string | null }
+
+export type ResaleModel = { id: string; type: string; brand: string; model: string; good: number; source: string }

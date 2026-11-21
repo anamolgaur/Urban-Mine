@@ -42,7 +42,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         const r = await api<Me | NeedsOnboarding>('/api/me')
         if (!live) return
         setError(null)
-        if (r.user) { setMe(r); setStatus('ready') } else { setMe(null); setPhone(r.phone); setStatus('needs_onboarding') }
+        if (r.user) { setMe(r); setStatus('ready') } else { setMe(null); setPhone(r.phone ?? r.email ?? null); setStatus('needs_onboarding') }
       } catch (e) {
         if (!live) return
         if (supabase && e instanceof ApiError && e.status === 401) { await supabase.auth.signOut().catch(() => {}); setMe(null); setStatus('signed_out'); return }

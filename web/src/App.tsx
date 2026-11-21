@@ -21,10 +21,16 @@ import Auditor from './screens/auditor/Auditor.tsx'
 import Login from './screens/auth/Login.tsx'
 import Onboarding from './screens/auth/Onboarding.tsx'
 import Pending from './screens/auth/Pending.tsx'
+import Setup from './screens/auth/Setup.tsx'
+import Tour from './components/Tour.tsx'
+import { useState } from 'react'
+import { setupStage, setSetupStage } from './lib/theme.ts'
 
 export default function App() {
   const { me, status, error, reload } = useSession()
   const { t } = useLang()
+  const [stage, setStage] = useState(setupStage)
+  const go = (s: 'setup' | 'tour' | 'done') => { setSetupStage(s); setStage(s) }
 
   if (status === 'error') {
     return (
@@ -39,6 +45,9 @@ export default function App() {
   if (!me) return <p className="p-10 text-center text-sm text-mute" role="status">{t('loading')}</p>
   // recyclers and repairers wait for an auditor; the server enforces this too
   if (me.user.approval !== 'approved') return <Pending />
+
+  // first run on this device: language, then light/dark, then the guided tour
+  if (stage === 'setup') return <Setup onDone={() => go('tour')} />
 
   const role = me.user.role
   const start = homeFor(role)
@@ -67,6 +76,7 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    {stage === 'tour' && <Tour role={role} onDone={() => go('done')} />}
     </Boundary>
   )
 }

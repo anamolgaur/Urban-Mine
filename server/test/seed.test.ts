@@ -6,7 +6,7 @@ const db = await ownDb({ demo: false });
 const rows = async (sql: string) => (await db.prepare(sql).all()) as Record<string, any>[];
 
 test('seed counts match the build plan', async () => {
-  assert.equal((await rows('SELECT * FROM device_model')).length, 12);
+  assert.equal((await rows('SELECT * FROM device_model')).length, 37);
   assert.equal((await rows('SELECT DISTINCT device_type FROM safety_pack')).length, 3);
   assert.equal((await rows('SELECT * FROM safety_pack')).length, 6); // 3 types x hi/en
   assert.equal((await rows('SELECT * FROM repair_guide')).length, 6);

@@ -47,7 +47,7 @@ export default function SafetyEditor() {
       {p && (
         <div className="mt-4 space-y-4">
           {p.steps.map((s, i) => (
-            <div key={s.id} className="border border-ink bg-white p-3">
+            <div key={s.id} className="rounded-2xl border border-hair bg-white p-3">
               <p className="num mb-2 text-sm text-mute">{i + 1}. {s.id} {s.photo_required && <Tag tone="bad">{t('photo_required')}</Tag>}</p>
               <Field label={t('step_title')}><input className={inputCls} value={edits[s.id]?.title ?? ''} onChange={(e) => setEdits({ ...edits, [s.id]: { ...edits[s.id], title: e.target.value } })} /></Field>
               <Field label={t('step_instruction')}><textarea className={`${inputCls} min-h-20 py-2`} value={edits[s.id]?.instruction ?? ''} onChange={(e) => setEdits({ ...edits, [s.id]: { ...edits[s.id], instruction: e.target.value } })} /></Field>

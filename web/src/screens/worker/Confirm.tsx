@@ -19,7 +19,7 @@ function Confidence({ value }: { value: number }) {
   return (
     <div>
       <div className="mb-1 flex items-baseline justify-between">
-        <span className="text-sm font-semibold uppercase tracking-wide text-mute">{t('confidence')}</span>
+        <span className="text-sm font-medium text-mute">{t('confidence')}</span>
         <span className="num text-base font-semibold">{pct(value)} · {t('conf_' + level)}</span>
       </div>
       <Meter value={value} label={t('confidence')} valueText={`${pct(value)}, ${t('conf_' + level)}`} tone={level === 'high' ? 'ok' : 'amber'} />
@@ -89,11 +89,11 @@ export default function Confirm() {
     <Screen title={t('confirm_title')} tabs={false}>
       {rail}
 
-      <div className="mt-5 border-2 border-ink bg-white">
+      <div className="mt-5 rounded-3xl bg-white shadow-card">
         <div className="flex gap-3 p-3">
-          {photo ? <img src={photo} alt="" className="h-20 w-20 shrink-0 border border-ink object-cover" /> : <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center border border-ink"><Icon name={flow.type ?? 'box'} size={36} /></span>}
+          {photo ? <img src={photo} alt="" className="h-20 w-20 shrink-0 border border-hair object-cover" /> : <span className="inline-flex h-20 w-20 shrink-0 items-center justify-center border border-hair"><Icon name={flow.type ?? 'box'} size={36} /></span>}
           <div className="min-w-0">
-            <p className="text-sm font-semibold uppercase tracking-wide text-mute">{modelMatch ? t('is_your_device') : t('type_only_q')}</p>
+            <p className="text-sm font-medium text-mute">{modelMatch ? t('is_your_device') : t('type_only_q')}</p>
             <p className="mt-0.5 text-xl font-bold leading-tight">{modelMatch ? `${modelMatch.model.brand} ${modelMatch.model.model}` : flow.type ? t('type.' + flow.type) : '-'}</p>
             <p className="mt-1 flex flex-wrap gap-1"><Tag>{t('category')}: {flow.type ? t('type.' + flow.type) : '-'}</Tag></p>
           </div>

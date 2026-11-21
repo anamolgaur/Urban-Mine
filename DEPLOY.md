@@ -32,27 +32,21 @@ Optional hardening: download the CA certificate (Project → Database → SSL) a
 
 Schema changes: add a new numbered file `server/migrations/0002_*.sql`. It is applied automatically on the next start. Never edit an applied migration.
 
-## 1b. Phone sign-in (Supabase Auth)
+## 1b. Sign-in: phone or email, with a password (no codes, free)
 
-Workers, recyclers and repairers sign in with their mobile number and a 6-digit SMS code, once per phone. After the code, a first-time user picks their role and fills in their details. Recyclers and repairers then wait for an auditor to approve them (the auditor console has an *Approval requests* list on the Recyclers tab).
+People create an account with their mobile number OR their email, plus a password. No SMS or email code is sent, so it costs nothing and needs no SMS provider or DLT registration.
 
-1. Supabase → **Authentication → Providers → Phone**: enable it and choose an SMS provider (Twilio or Twilio Verify are common in India). Indian SMS needs your **DLT** sender ID and message template registered; start that early, it takes days.
-2. Same page, **Test phone numbers and OTPs**: add two or three numbers with a fixed code. They sign in with no SMS sent, which keeps your demo safe from a slow network or a DLT delay.
-3. Authentication → Rate limits: keep the SMS limits low. Optionally turn on **Attack Protection → CAPTCHA** (Cloudflare Turnstile) before you share the link widely, because public sign-up pages can be abused to send paid SMS.
-4. Settings → API: copy the **Project URL** and the **anon / publishable key**. They are public values. Put them in:
-   - `server/.env` (and the API host): `SUPABASE_URL`, `SUPABASE_ANON_KEY`
-   - `web/.env.local` (and Vercel): `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-   Never use the `service_role` key in the web app, and the API does not need it.
-5. Create your auditor account. Auditors cannot sign themselves up:
+In Supabase:
+1. **Authentication → Providers → Email**: enabled. Turn **Confirm email** OFF.
+2. **Authentication → Providers → Phone**: enabled. Turn **Confirm phone** (phone confirmations) OFF. You do not need to set up an SMS provider.
+3. **Authentication → Rate limits**: keep the defaults.
+4. **Settings → API**: copy the Project URL and the anon / publishable key into `SUPABASE_URL` and `SUPABASE_ANON_KEY` (server and Render).
+5. Create your auditor account (auditors cannot sign themselves up), then create a login with the same email or number in the app:
    ```
-   npm run auditor -- +919876543210 "Your Name"
+   npm run auditor -- you@example.com "Your Name"
    ```
-   Then sign in with that number. The account attaches to the number at first sign-in.
-6. Deployed builds: leave `DEMO_LOGIN` unset. With Supabase configured, the sample-account switcher and the `X-User-Id` header are off, and the "demo offers" button stops working.
 
-Without `SUPABASE_URL` / `VITE_SUPABASE_URL` the app runs in **demo mode** (the sample accounts and the switcher in Profile), which is what local development uses.
-
-How a request is checked: the app sends the Supabase access token; the API asks Supabase who it belongs to (cached for a minute) and loads the matching Urban Mine account. The role is set once at onboarding and can never be changed from the app. Recyclers and repairers are blocked by the server (not just hidden in the app) until approved. Deleting your data in Profile also detaches the sign-in so the same number can start fresh.
+Note: without confirmation, anyone could type someone else's email or number. This is fine for a demo; for real use, switch confirmation back on.
 
 ## 1c. Photo storage (private Supabase bucket)
 

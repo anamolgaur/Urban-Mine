@@ -21,8 +21,8 @@ export async function seedDemo(db: Db, now = new Date(), photos?: PhotoStore) {
     photo_hashes: [h('a3')], gps: near1, created_at: ago(200) });
   await listLot(db, a.id, 'u-worker-1');
   await recordFlags(db, a.id);
-  await placeBid(db, { lotId: a.id, recyclerId: 'u-recycler-1', amount: 195, pickupTerms: 'SAMPLE: pickup tomorrow 10am', minutes: 90, now });
-  await placeBid(db, { lotId: a.id, recyclerId: 'u-recycler-2', amount: 170, pickupTerms: 'SAMPLE: pickup today 6pm', minutes: 45, now });
+  await placeBid(db, { lotId: a.id, recyclerId: 'u-recycler-1', amount: 82, pickupTerms: 'SAMPLE: pickup tomorrow 10am', minutes: 90, now });
+  await placeBid(db, { lotId: a.id, recyclerId: 'u-recycler-2', amount: 74, pickupTerms: 'SAMPLE: pickup today 6pm', minutes: 45, now });
 
   // Worker 2: a lot reusing a photo from lot A (duplicate), listed
   const c = await createLot(db, { user_id: 'u-worker-2', items: [{ model_id: 'ph-arka-a1', type: 'phone', qty: 3 }], weight_kg: 0.6, steps_done: 3, steps_total: 3,
@@ -37,7 +37,7 @@ export async function seedDemo(db: Db, now = new Date(), photos?: PhotoStore) {
   const f = await createLot(db, { user_id: 'u-worker-2', items: [{ type: 'router', qty: 1 }], weight_kg: 0.25, steps_done: 0, steps_total: 0, photo_hashes: [h('f1')], gps: near2, created_at: ago(3) });
 
   for (const id of [c.id, d.id, f.id]) await recordFlags(db, id);
-  await placeBid(db, { lotId: c.id, recyclerId: 'u-recycler-1', amount: 160, pickupTerms: 'SAMPLE: pickup in 2 days', minutes: 120, now });
+  await placeBid(db, { lotId: c.id, recyclerId: 'u-recycler-1', amount: 70, pickupTerms: 'SAMPLE: pickup in 2 days', minutes: 120, now });
 
   // Repairer: two verified repairs (both before and after photos)
   const day = 86400000;

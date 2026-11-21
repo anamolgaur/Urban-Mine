@@ -8,7 +8,7 @@ import { buildApp } from '../src/app.ts';
 import { supabaseVerifier, e164, type TokenVerifier } from '../src/auth.ts';
 
 /** Tokens are made up here: a real deployment verifies them with Supabase. */
-const people: Record<string, { sub: string; phone: string | null }> = {
+const people: Record<string, { sub: string; phone: string | null; email?: string | null }> = {
   'tok-new-worker': { sub: 'auth-1', phone: '+919811111111' },
   'tok-new-recycler': { sub: 'auth-2', phone: '+919822222222' },
   'tok-new-repairer': { sub: 'auth-3', phone: '+919833333333' },
@@ -41,7 +41,7 @@ test('a signed-in phone with no account is told to onboard, and cannot use the a
   const { app } = await setup();
   const me = await app.inject({ url: '/api/me', headers: bearer('tok-new-worker') });
   assert.equal(me.statusCode, 200);
-  assert.deepEqual(me.json(), { user: null, needs_onboarding: true, phone: '+919811111111' });
+  assert.deepEqual(me.json(), { user: null, needs_onboarding: true, phone: '+919811111111', email: null });
   const lots = await app.inject({ url: '/api/lots', headers: bearer('tok-new-worker') });
   assert.equal(lots.statusCode, 403);
   assert.equal(lots.json().code, 'needs_onboarding');
@@ -185,10 +185,23 @@ test('the Supabase verifier asks Supabase who the token is, caches, and maps fai
     }) as unknown as typeof fetch,
   });
   const ok = mk(200, { id: 'abc', phone: '919876543210' });
-  assert.deepEqual(await ok.verify('t1'), { sub: 'abc', phone: '+919876543210' });
+  assert.deepEqual(await ok.verify('t1'), { sub: 'abc', phone: '+919876543210', email: null });
   await ok.verify('t1');
   assert.equal(calls, 1, 'second call is served from the cache');
   await assert.rejects(() => mk(401).verify('t2'), (e: { statusCode: number }) => e.statusCode === 401);
   await assert.rejects(() => mk(500).verify('t3'), (e: { statusCode: number }) => e.statusCode === 503);
   await assert.rejects(() => mk(200, {}).verify('t4'), (e: { statusCode: number }) => e.statusCode === 401);
+});
+
+test('an email sign-in onboards, and a pre-made auditor attaches by email', async () => {
+  const { app, db } = await setup();
+  people['tok-email'] = { sub: 'auth-e1', phone: null, email: 'asha@example.com' };
+  const me = (await app.inject({ url: '/api/me', headers: bearer('tok-email') })).json();
+  assert.deepEqual([me.needs_onboarding, me.email], [true, 'asha@example.com']);
+  const r = await app.inject({ method: 'POST', url: '/api/onboarding', headers: bearer('tok-email'), payload: workerBody });
+  assert.equal(r.statusCode, 200, r.body);
+  assert.equal(((await db.prepare("SELECT email FROM app_user WHERE auth_id = 'auth-e1'").get()) as { email: string }).email, 'asha@example.com');
+  await db.prepare("INSERT INTO app_user (id, role, name, email, language, approval, kyc_status) VALUES ('u-aud-e','auditor','Aud','boss@example.com','en','approved','simulated')").run();
+  people['tok-boss'] = { sub: 'auth-e2', phone: null, email: 'boss@example.com' };
+  assert.equal((await app.inject({ url: '/api/me', headers: bearer('tok-boss') })).json().user.role, 'auditor');
 });

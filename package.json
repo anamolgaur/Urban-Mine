@@ -8,13 +8,13 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "dev:server": "node --env-file-if-exists=server/.env --watch server/src/index.ts",
+    "dev:server": "node --env-file-if-exists=server/.env --watch-path=server/src --watch server/src/index.ts",
     "dev:web": "npm run dev --prefix web",
     "build:web": "npm run build --prefix web",
     "seed": "node --env-file-if-exists=server/.env server/src/reset.ts",
     "check:strings": "node scripts/check-strings.mjs",
     "pretest": "node server/src/template.ts",
-    "test": "node --test --test-isolation=none --test-force-exit \"server/test/*.test.ts\"",
+    "test": "node --test --test-force-exit \"server/test/*.test.ts\"",
     "start": "node --env-file-if-exists=server/.env server/src/index.ts",
     "db:check": "node --env-file-if-exists=server/.env server/src/check.ts",
     "auditor": "node --env-file-if-exists=server/.env server/src/auditor.ts",

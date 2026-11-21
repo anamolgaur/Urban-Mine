@@ -3,7 +3,9 @@ export type RateRow = { material: string; city: string; rate_per_kg: number; upd
 
 export const MATERIALS = ['copper', 'aluminium', 'steel', 'plastic', 'glass', 'pcb', 'battery_li'] as const;
 
-const base: Record<string, number> = { copper: 640, aluminium: 150, steel: 28, plastic: 12, glass: 4, pcb: 1800, battery_li: 90 };
+// Checked against Indian scrap-rate trackers, mid-2026 (scraprates.in national averages, IndiaMart listings): copper ~610, iron ~33,
+// plastic ~13, Li-ion ~85-90, mixed circuit boards ~150-400. Aluminium is household-grade scrap. Glass has little or no buyer value.
+const base: Record<string, number> = { copper: 610, aluminium: 150, steel: 33, plastic: 13, glass: 4, pcb: 300, battery_li: 88 };
 const cityFactor: Record<string, number> = { Delhi: 1, Kolkata: 0.94 };
 const yesterdayDelta: Record<string, number> = { copper: -6, aluminium: 2, steel: 0, plastic: 0, glass: 0, pcb: 40, battery_li: -3 };
 

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 /** Who a sign-in token belongs to. `phone` is E.164 (+91...) when the login was by phone. */
-export type Identity = { sub: string; phone: string | null };
+export type Identity = { sub: string; phone: string | null; email?: string | null };
 
 export interface TokenVerifier {
   /** Resolve a bearer token to an identity, or throw an error with statusCode 401 (invalid) or 503 (auth service down). */
@@ -9,6 +9,12 @@ export interface TokenVerifier {
 }
 
 const fail = (statusCode: number, message: string, code?: string) => Object.assign(new Error(message), { statusCode, appCode: code });
+
+/** Lower-cased email, or null if it does not look like one. */
+export const normEmail = (raw: unknown): string | null => {
+  const s = String(raw ?? '').trim().toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? s : null;
+};
 
 export const e164 = (raw: unknown): string | null => {
   const digits = String(raw ?? '').replace(/\D/g, '');
@@ -38,9 +44,9 @@ export function supabaseVerifier(baseUrl: string, anonKey: string, opts: { ttlMs
       }
       if (res.status === 401 || res.status === 403) throw fail(401, 'Your sign-in has expired. Please sign in again.', 'unauthenticated');
       if (!res.ok) throw fail(503, 'Sign-in service error', 'auth_unavailable');
-      const j = (await res.json()) as { id?: string; phone?: string };
+      const j = (await res.json()) as { id?: string; phone?: string; email?: string };
       if (!j.id) throw fail(401, 'Invalid sign-in', 'unauthenticated');
-      const id: Identity = { sub: j.id, phone: e164(j.phone) };
+      const id: Identity = { sub: j.id, phone: e164(j.phone), email: normEmail(j.email) };
       if (cache.size > 2000) cache.clear();
       cache.set(key, { id, until: Date.now() + ttl });
       return id;

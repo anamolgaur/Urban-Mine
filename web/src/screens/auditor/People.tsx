@@ -8,9 +8,9 @@ import { Tag, Loading, ErrorNote, Btn, H2, Banner } from '../../components/ui.ts
 function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   const { t } = useLang()
   return (
-    <div className="overflow-x-auto border border-ink bg-white">
+    <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
       <table className="w-full min-w-[520px] text-left text-sm">
-        <thead><tr className="border-b border-ink font-mono text-sm uppercase">{head.map((h) => <th key={h} className="px-3 py-2 font-semibold">{t(h)}</th>)}</tr></thead>
+        <thead><tr className="border-b border-hair text-sm">{head.map((h) => <th key={h} className="px-3 py-2 font-semibold">{t(h)}</th>)}</tr></thead>
         <tbody>{rows.map((r, i) => <tr key={i} className="border-b border-hair">{r.map((c, j) => <td key={j} className="px-3 py-3">{c}</td>)}</tr>)}</tbody>
       </table>
     </div>

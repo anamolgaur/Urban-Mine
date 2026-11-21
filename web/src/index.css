@@ -1,27 +1,55 @@
 @import "tailwindcss";
 
 @theme {
-  --color-ink: #14171A;
-  --color-paper: #F4F3EF;
-  --color-hair: #DAD8D0;
-  --color-amber: #F2A20C;
-  --color-ok: #1B6B3A;
+  --color-ink: #1F2421;
+  --color-paper: #F5F3EE;
+  --color-hair: #E3DED3;
+  --color-amber: #E8A317;
+  --color-ok: #1E5B3A;
   --color-bad: #B3261E;
-  --color-mute: #565A5F;
-  --color-sunk: #E9E7E0;
-  --font-sans: 'IBM Plex Sans', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Gujarati', system-ui, sans-serif;
-  --font-cond: 'IBM Plex Sans Condensed', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Gujarati', system-ui, sans-serif;
-  --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --color-mute: #545C57;
+  --color-sunk: #EFECE5;
+  --color-brand: #1E5B3A;
+  --color-brand-soft: #EAF2EC;
+  --color-gold-soft: #FDF3DC;
+  --color-gold-ink: #6B4A00;
+  --color-bad-soft: #FFF1EF;
+  --color-onbrand: #FFFFFF;
+  --color-white: #FFFFFF;
+  --font-sans: 'Hind', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Gujarati', system-ui, sans-serif;
+  --font-cond: var(--font-sans);
+  --font-mono: var(--font-sans);
+  --shadow-card: 0 1px 2px rgb(31 36 33 / 0.05), 0 4px 14px -6px rgb(31 36 33 / 0.10);
 }
+
+/* Dark theme (the default): same tokens, night values. `white` is the card colour, so cards follow the theme. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-ink: #ECEFEA;
+  --color-paper: #000000;
+  --color-white: #141815;
+  --color-hair: #262C28;
+  --color-sunk: #1C211E;
+  --color-mute: #A3ADA6;
+  --color-brand: #2F7A50;
+  --color-ok: #6CC08F;
+  --color-brand-soft: #1D3227;
+  --color-gold-soft: #3A2F14;
+  --color-gold-ink: #F3D08A;
+  --color-bad: #F08A80;
+  --color-bad-soft: #3A1E1B;
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 18px -8px rgb(0 0 0 / 0.6);
+}
+:root[data-theme='dark'] .text-brand { color: #7CCB9C; }
 
 /* Base styles must live in a layer, otherwise they override Tailwind utilities (e.g. text-paper on a button). */
 @layer base {
   html, body, #root { min-height: 100%; }
-  body { background: var(--color-sunk); color: var(--color-ink); font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
+  body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit-tap-highlight-color: transparent; }
   button, input, select, textarea { font: inherit; color: inherit; }
-  :focus-visible { outline: 3px solid var(--color-ink); outline-offset: 2px; }
+  :focus-visible { outline: 3px solid var(--color-brand); outline-offset: 2px; border-radius: 12px; }
 }
 @keyframes um-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .screen-enter { animation: um-enter 0.2s ease-out both; }
-.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.num { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }

@@ -179,16 +179,19 @@ test('every offer carries a fair-range verdict that follows the lot, its grade a
   const bid = async (id: string, amount: number) => app.inject({ method: 'POST', url: `/api/lots/${id}/bids`, headers: as('u-recycler-1'), payload: { amount, pickup_terms: 'x' } });
   const rangeA = (await app.inject({ url: `/api/lots/${lotA}/offers`, headers: as('u-worker-2') })).json();
   assert.deepEqual(rangeA, []);
-  await bid(lotA, 1);
+  const mA = (await app.inject({ url: '/api/market/lots', headers: as('u-recycler-1') })).json().find((l: { id: string }) => l.id === lotA);
+  const lowBid = Math.ceil(mA.expected.low * 0.85);
+  assert.equal((await bid(lotA, 1)).statusCode, 400, 'a lowball offer under the floor is refused');
+  await bid(lotA, lowBid);
   const offA = (await app.inject({ url: `/api/lots/${lotA}/offers`, headers: as('u-worker-2') })).json()[0];
   assert.equal(offA.fair.verdict, 'below');
   const { low: lowA, high: highA } = offA.fair;
   await bid(lotA, Math.round((lowA + highA) / 2));
   await bid(lotA, highA + 500);
   const verdicts = (await app.inject({ url: `/api/lots/${lotA}/offers`, headers: as('u-worker-2') })).json().map((o: { amount: number; fair: { verdict: string } }) => [o.amount, o.fair.verdict]);
-  assert.deepEqual(verdicts, [[highA + 500, 'above'], [Math.round((lowA + highA) / 2), 'within'], [1, 'below']]);
+  assert.deepEqual(verdicts, [[highA + 500, 'above'], [Math.round((lowA + highA) / 2), 'within'], [lowBid, 'below']]);
   // the same device in grade D has a lower fair range than in grade A
-  await bid(lotD, 5);
+  await bid(lotD, 100000);
   const offD = (await app.inject({ url: `/api/lots/${lotD}/offers`, headers: as('u-worker-2') })).json()[0];
   assert.ok(offD.fair.high < highA && offD.fair.low < lowA, 'grade D lowers the range');
   assert.ok(Math.abs(offD.fair.high / highA - CONDITION_FACTORS.D) < 0.02);

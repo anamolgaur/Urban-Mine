@@ -65,7 +65,7 @@ export default function PhotoCheck({ factor }: { factor?: number }) {
       <p className="mb-3 text-base leading-snug text-mute">{t('pc_sub')}</p>
 
       {needsConsent && (
-        <div className="mb-3 border-2 border-ink bg-white p-3">
+        <div className="mb-3 rounded-3xl bg-white shadow-card p-3">
           <p className="flex items-center gap-2 text-lg font-bold"><Icon name="scan" size={22} />{t('pc_consent_title')}</p>
           <p className="mt-2 text-base leading-snug">{t('pc_consent_body')}</p>
           <div className="mt-3 grid gap-2"><Btn icon="check" onClick={allow}>{t('pc_allow')}</Btn><Btn variant="secondary" onClick={() => setDeclined(true)}>{t('pc_skip')}</Btn></div>
@@ -78,7 +78,7 @@ export default function PhotoCheck({ factor }: { factor?: number }) {
       <div role="radiogroup" aria-label={t('pc_title')} className="grid gap-2">
         {GRADES.map((g) => (
           <button key={g} role="radio" aria-checked={cond?.grade === g} onClick={() => pick(g)}
-            className={`flex min-h-12 items-center gap-3 border px-3 py-2 text-left ${cond?.grade === g ? 'border-ink bg-ink text-paper' : 'border-ink bg-white'}`}>
+            className={`flex min-h-12 items-center gap-3 border px-3 py-2 text-left ${cond?.grade === g ? 'border-brand bg-brand text-onbrand' : 'border-hair bg-white'}`}>
             <span className="num inline-flex h-9 w-9 shrink-0 items-center justify-center border border-current text-xl font-bold" aria-hidden>{cond?.grade === g ? '✓' : g}</span>
             <span className="text-base leading-snug"><span className="sr-only">{t('pc_grade', { g })}. </span>{t('pc_desc_' + g)}</span>
           </button>

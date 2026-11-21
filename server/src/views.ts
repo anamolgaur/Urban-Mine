@@ -37,6 +37,7 @@ export async function lotView(db: Db, r: Row, chainOk?: boolean) {
   const flags = await db.prepare('SELECT kind, detail, status FROM flag WHERE lot_id = ? ORDER BY seq').all(r.id) as Row[];
   const worker = await db.prepare('SELECT name FROM app_user WHERE id = ?').get(r.user_id) as Row | undefined;
   const sale = await db.prepare("SELECT amount FROM bid WHERE lot_id = ? AND status = 'accepted'").get(r.id) as Row | undefined;
+  const offers = await db.prepare("SELECT COUNT(*) AS n, MAX(amount) AS top FROM bid WHERE lot_id = ? AND status = 'open' AND expires_at > ?").get(r.id, new Date().toISOString()) as Row | undefined;
   return {
     id: r.id, user_id: r.user_id, worker_name: worker?.name ?? 'Deleted user',
     items: JSON.parse(r.items), weight_kg: r.weight_kg, steps_done: r.steps_done, steps_total: r.steps_total,
@@ -44,6 +45,7 @@ export async function lotView(db: Db, r: Row, chainOk?: boolean) {
     prev_hash: r.prev_hash, hash: r.hash, short_hash: shortHash(r.hash), status: r.status, created_at: r.created_at,
     flags: flags.map((f) => ({ kind: f.kind, detail: f.detail, status: f.status })),
     sale_amount: (sale?.amount as number | undefined) ?? null,
+    open_offers: Number(offers?.n ?? 0), top_offer: (offers?.top as number | null | undefined) ?? null,
     chain_ok: chainOk ?? (await chainStatus(db, r.user_id)).get(r.id) ?? false,
   };
 }

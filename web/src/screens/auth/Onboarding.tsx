@@ -68,11 +68,11 @@ export default function Onboarding() {
 
         {step === 0 && (
           <>
-            <h2 className="mb-3 mt-4 font-cond text-2xl font-bold">{t('ob_role_q')}</h2>
+            <h2 className="mb-3 mt-4 text-2xl font-bold">{t('ob_role_q')}</h2>
             <div role="radiogroup" aria-label={t('ob_role_q')} className="grid gap-2">
               {ROLES.map((r) => (
                 <button key={r.id} role="radio" aria-checked={role === r.id} onClick={() => setRole(r.id)}
-                  className={`flex min-h-20 items-start gap-3 border-2 p-3 text-left ${role === r.id ? 'border-ink bg-ink text-paper' : 'border-ink bg-white'}`}>
+                  className={`flex min-h-20 items-start gap-3 border-2 p-3 text-left ${role === r.id ? 'border-brand bg-brand text-onbrand' : 'border-hair bg-white'}`}>
                   <Icon name={r.icon} size={28} className="mt-0.5 shrink-0" />
                   <span>
                     <span className="block text-lg font-bold">{role === r.id && '✓ '}{t('role.' + r.id)}</span>
@@ -87,7 +87,7 @@ export default function Onboarding() {
 
         {step === 1 && (
           <>
-            <h2 className="mb-3 mt-4 font-cond text-2xl font-bold">{t('ob_you')}</h2>
+            <h2 className="mb-3 mt-4 text-2xl font-bold">{t('ob_you')}</h2>
             <label className="mb-4 block">
               <span className="mb-1 block text-sm font-semibold">{t(role === 'recycler' ? 'ob_company' : 'ob_name')}</span>
               <input className={inputCls} value={name} onChange={(e) => setName(e.target.value)} autoComplete="name" maxLength={60} autoFocus />
@@ -118,7 +118,7 @@ export default function Onboarding() {
 
         {step === 2 && (
           <>
-            <h2 className="mb-3 mt-4 font-cond text-2xl font-bold">{t('ob_finish')}</h2>
+            <h2 className="mb-3 mt-4 text-2xl font-bold">{t('ob_finish')}</h2>
             <dl className="divide-y divide-hair border-y border-hair text-base">
               <div className="flex justify-between gap-3 py-2"><dt className="text-mute">{t('col_role')}</dt><dd className="font-semibold">{role && t('role.' + role)}</dd></div>
               <div className="flex justify-between gap-3 py-2"><dt className="text-mute">{t(role === 'recycler' ? 'ob_company' : 'ob_name')}</dt><dd className="font-semibold">{name.trim()}</dd></div>
@@ -127,7 +127,7 @@ export default function Onboarding() {
             </dl>
             {role !== 'worker' && <div className="mt-4"><Banner tone="amber" icon="clock">{t('pend_body')}</Banner></div>}
             <p className="mt-4 flex gap-2 text-sm text-mute"><Icon name="info" size={18} className="mt-0.5 shrink-0" />{t('ob_kyc')}</p>
-            <label className="mt-4 flex min-h-12 items-start gap-3 border border-ink bg-white p-3">
+            <label className="mt-4 flex min-h-12 items-start gap-3 rounded-2xl border border-hair bg-white p-3">
               <input type="checkbox" className="mt-1 h-6 w-6 shrink-0 accent-black" checked={consent} onChange={(e) => { setConsent(e.target.checked); setErr(null) }} />
               <span className="text-base leading-snug">{t('ob_consent')}</span>
             </label>

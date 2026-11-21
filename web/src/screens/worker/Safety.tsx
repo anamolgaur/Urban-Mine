@@ -29,7 +29,7 @@ function ListenButton({ text }: { text: string }) {
   return (
     <div>
       <button onClick={() => { if (on) { stopSpeaking(); setOn(false) } else { setOn(true); speak(text, lang, () => setOn(false)) } }}
-        aria-pressed={on} className={`flex min-h-14 w-full items-center justify-center gap-2 border-2 border-ink px-3 text-base font-bold ${on ? 'bg-ink text-paper' : 'bg-white'}`}>
+        aria-pressed={on} className={`flex min-h-14 w-full items-center justify-center gap-2 border-2 border-brand px-3 text-base font-bold ${on ? 'bg-brand text-onbrand' : 'bg-white'}`}>
         <Icon name="volume" size={24} />{on ? t('stop_audio') : t('listen')}
       </button>
       {!hasVoice && <p className="mt-1 text-sm text-mute">{t('no_voice')}</p>}
@@ -38,7 +38,7 @@ function ListenButton({ text }: { text: string }) {
 }
 
 function BottomBar({ children }: { children: React.ReactNode }) {
-  return <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-ink bg-paper p-3">{children}</div>
+  return <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-hair bg-paper p-3">{children}</div>
 }
 
 export function Briefing() {
@@ -63,7 +63,7 @@ export function Briefing() {
           <>
             {lang !== 'hi' && lang !== 'en' && <div className="mt-4"><Banner icon="info">{t('content_fallback')}</Banner></div>}
             <div className="mt-4"><EmergencyLine text={pack.emergency} /></div>
-            <div className="mt-4 flex items-center gap-3 border border-hair bg-white p-3">
+            <div className="mt-4 flex items-center gap-3 rounded-2xl border border-hair bg-white p-3">
               <Illustration art="shield" className="h-16 w-24 shrink-0" />
               <p className="text-base leading-snug">{t('brief_intro')}</p>
             </div>
@@ -148,7 +148,7 @@ export function Step() {
             <ol className="mb-4 flex gap-1.5" aria-label={t('step_of', { n: stepIdx + 1, m: pack.steps.length })}>
               {pack.steps.map((s, i) => (
                 <li key={s.id} aria-current={i === stepIdx ? 'step' : undefined}
-                  className={`num flex h-9 flex-1 items-center justify-center border-2 border-ink text-base font-bold ${i < stepIdx ? 'bg-ink text-paper' : i === stepIdx ? 'bg-amber' : 'bg-white text-mute'}`}>
+                  className={`num flex h-9 flex-1 items-center justify-center border-2 border-brand text-base font-bold ${i < stepIdx ? 'bg-brand text-onbrand' : i === stepIdx ? 'bg-amber' : 'bg-white text-mute'}`}>
                   {i < stepIdx ? <Icon name="check" size={18} /> : i + 1}
                 </li>
               ))}
@@ -163,18 +163,18 @@ export function Step() {
 
             <div className="mt-4 grid gap-3">
               <section className="border-2 border-ok bg-white" aria-label={t('do')}>
-                <h3 className="flex items-center gap-2 bg-ok px-3 py-1.5 font-mono text-base font-bold uppercase text-white"><Icon name="check" size={20} />{t('do')}</h3>
+                <h3 className="flex items-center gap-2 bg-ok px-3 py-1.5 text-base font-bold text-onbrand"><Icon name="check" size={20} />{t('do')}</h3>
                 <ul className="space-y-2 p-3">{step.do.map((d) => <li key={d} className="flex gap-2 text-lg leading-snug"><Icon name="check" size={22} className="mt-0.5 shrink-0 text-ok" />{d}</li>)}</ul>
               </section>
               <section className="border-2 border-bad bg-white" aria-label={t('dont')}>
-                <h3 className="flex items-center gap-2 bg-bad px-3 py-1.5 font-mono text-base font-bold uppercase text-white"><Icon name="x" size={20} />{t('dont')}</h3>
+                <h3 className="flex items-center gap-2 bg-bad px-3 py-1.5 text-base font-bold text-onbrand"><Icon name="x" size={20} />{t('dont')}</h3>
                 <ul className="space-y-2 p-3">{step.dont.map((d) => <li key={d} className="flex gap-2 text-lg leading-snug"><Icon name="x" size={22} className="mt-0.5 shrink-0 text-bad" />{d}</li>)}</ul>
               </section>
             </div>
 
             {step.photo_required && (
               <div className="mt-4">
-                <label className="relative flex min-h-40 w-full cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden border-2 border-dashed border-ink bg-white text-base font-bold focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-ink">
+                <label className="relative flex min-h-40 w-full cursor-pointer flex-col items-center justify-center gap-1 overflow-hidden border-2 border-dashed border-hair bg-white text-base font-bold focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-ink">
                   <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => { void takePhoto(e.target.files?.[0]); e.target.value = '' }} />
                   {photo ? <img src={photo.url} alt="" className="absolute inset-0 h-full w-full object-cover" /> : <Icon name="camera" size={36} />}
                   <span className={photo ? 'absolute bottom-0 flex w-full items-center justify-center gap-1 bg-ink py-1.5 text-paper' : ''}>

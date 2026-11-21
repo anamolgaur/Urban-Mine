@@ -47,11 +47,11 @@ export default function Receipt() {
       {l && l.status === 'sold' && (
         <>
           <Banner tone="bad" icon="alert">{t('receipt_proto')}</Banner>
-          <div className="mt-3 border-2 border-ink bg-white p-4">
+          <div className="mt-3 rounded-3xl bg-white shadow-card p-4">
             <dl className="divide-y divide-hair text-sm">
               {rows.map(([k, v]) => <div key={k} className="flex justify-between gap-3 py-2"><dt className="shrink-0 text-mute">{k}</dt><dd className="text-right font-semibold">{v}</dd></div>)}
             </dl>
-            <p className="num mt-3 border-t border-ink pt-3 text-3xl font-semibold">{l.sale ? inr(l.sale.amount) : '-'}</p>
+            <p className="num mt-3 border-t border-hair pt-3 text-3xl font-semibold">{l.sale ? inr(l.sale.amount) : '-'}</p>
             <p className="mt-1"><Tag tone="bad">{t('simulated')}</Tag></p>
           </div>
           <H2>{t('record_hash')}</H2>

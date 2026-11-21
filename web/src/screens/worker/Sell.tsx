@@ -47,7 +47,7 @@ export default function Sell() {
     try {
       const l = await api<Lot>('/api/lots', {
         body: {
-          items: [{ model_id: flow.modelId, type: flow.type, qty: flow.qty, ...(flow.condition ? { grade: flow.condition.grade, grade_source: flow.condition.source } : {}) }],
+          items: [{ model_id: flow.modelId, type: flow.type, qty: flow.qty, ...(flow.works && (flow.resaleId || flow.customPrice) ? { works: true, condition: flow.wear, resale_id: flow.resaleId ?? undefined, custom_price: flow.customPrice ?? undefined } : {}), ...(flow.condition ? { grade: flow.condition.grade, grade_source: flow.condition.source } : {}) }],
           weight_kg: Number(weight), steps_done: stepsDone, steps_total: stepsTotal, photo_hashes: photoHashes, gps,
         },
       })
@@ -87,7 +87,7 @@ export default function Sell() {
 
             <H2>{t('photo_evidence')}</H2>
             <ul className="grid grid-cols-4 gap-2" aria-label={t('photo_evidence')}>
-              {flow.images.filter(Boolean).map((src, i) => <li key={'s' + i}><img src={src!} alt={`${t('photo')} ${i + 1}`} className="aspect-square w-full border border-ink object-cover" /></li>)}
+              {flow.images.filter(Boolean).map((src, i) => <li key={'s' + i}><img src={src!} alt={`${t('photo')} ${i + 1}`} className="aspect-square w-full border border-hair object-cover" /></li>)}
               {flow.extraHashes.map((h) => <li key={h}><Photo hash={h} className="aspect-square" /></li>)}
             </ul>
             <p className="mt-1 text-sm text-mute">{t('photos_count', { n: photoHashes.length })}</p>
@@ -104,7 +104,7 @@ export default function Sell() {
             {gpsMsg && <p className="mt-1 text-base text-bad">{gpsMsg}</p>}
 
             <H2>{t('hash_status')}</H2>
-            <div className="border border-hair bg-white p-3">
+            <div className="rounded-2xl border border-hair bg-white p-3">
               <p className="flex items-center gap-2 text-base font-semibold"><Icon name="link" size={20} />{t('hash_pending')}</p>
               <p className="mt-2 text-base leading-snug text-mute">{t('hash_explain_simple')}</p>
             </div>
@@ -113,7 +113,7 @@ export default function Sell() {
         ) : (
           <>
             <section className="mt-5 border-2 border-ok bg-white" aria-label={t('lot_created')}>
-              <p className="flex items-center gap-2 bg-ok px-3 py-2 text-lg font-bold text-white"><Icon name="check" size={22} />{t('lot_created')}</p>
+              <p className="flex items-center gap-2 bg-ok px-3 py-2 text-lg font-bold text-onbrand"><Icon name="check" size={22} />{t('lot_created')}</p>
               <dl className="divide-y divide-hair px-3">
                 <KV k={t('lot_id')} v={lot.id.slice(0, 8).toUpperCase()} mono />
                 <KV k={t('sale_status')} v={<StatusChip status={lot.status} />} />
@@ -121,7 +121,7 @@ export default function Sell() {
                 <KV k={t('loc_status')} v={<Tag tone={lot.gps ? 'ok' : 'plain'}>{lot.gps ? `✓ ${t('loc_added_ok')}` : t('loc_missing')}</Tag>} />
               </dl>
               <div className="border-t border-hair p-3">
-                <p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('record_hash')}</p>
+                <p className="text-sm font-medium text-mute">{t('record_hash')}</p>
                 <p className="num break-all text-2xl font-semibold">{lot.short_hash}</p>
                 <p className="num mt-1 break-all text-sm text-mute">{lot.hash}</p>
               </div>
@@ -134,7 +134,7 @@ export default function Sell() {
         )}
       </div>
 
-      <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-ink bg-paper p-3">
+      <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-hair bg-paper p-3">
         {!lot ? (
           <Btn onClick={create} disabled={busy || !ready || !(Number(weight) > 0)} icon="link">{busy ? t('saving') : t('create_lot')}</Btn>
         ) : (

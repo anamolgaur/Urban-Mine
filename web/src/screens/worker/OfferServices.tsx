@@ -42,7 +42,7 @@ export default function OfferServices() {
           const on = skills.includes(s)
           return (
             <button key={s} aria-pressed={on} onClick={() => setSkills(on ? skills.filter((x) => x !== s) : [...skills, s])}
-              className={`inline-flex min-h-11 items-center gap-1 border border-ink px-3 text-base font-semibold ${on ? 'bg-ink text-paper' : 'bg-white'}`}>
+              className={`inline-flex min-h-11 items-center gap-1 rounded-2xl border border-hair px-3 text-base font-semibold ${on ? 'bg-brand text-onbrand' : 'bg-white'}`}>
               {on && <Icon name="check" size={16} />}{t('type.' + s)}
             </button>
           )

@@ -25,16 +25,16 @@ export default function Shell() {
   const { pathname } = useLocation()
   const focused = /^\/(scan|safety|sell)/.test(pathname) // hide tabs during the scan-to-sell flow
   return (
-    <div className="mx-auto min-h-dvh w-full max-w-[480px] border-x border-hair bg-paper">
+    <div className="mx-auto min-h-dvh w-full max-w-[480px] bg-paper">
       <Outlet />
-      {!focused && <nav aria-label={t('tab_nav')} className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[480px] -translate-x-1/2 grid-cols-4 border-t border-ink bg-paper">
+      {!focused && <nav aria-label={t('tab_nav')} className="fixed bottom-0 left-1/2 z-30 grid w-full max-w-[480px] -translate-x-1/2 grid-cols-4 border-t border-hair bg-white px-2 pb-[max(env(safe-area-inset-bottom),8px)] pt-2">
         {tabs.map((tab) => (
-          <NavLink key={tab.to} to={tab.to} end={tab.end}
-            className={({ isActive }) => `flex min-h-16 flex-col items-center justify-center gap-0.5 text-sm font-semibold ${isActive ? 'bg-ink text-paper' : 'text-ink'}`}>
+          <NavLink key={tab.to} to={tab.to} end={tab.end} data-tour={`nav-${tab.key}`}
+            className={({ isActive }) => `flex min-h-14 flex-col items-center justify-center gap-1 text-sm ${isActive ? 'font-bold text-brand' : 'font-medium text-mute'}`}>
             {({ isActive }) => (
               <>
-                <Icon name={tab.icon} size={22} />
-                <span className={isActive ? 'border-b-2 border-amber' : 'border-b-2 border-transparent'}>{t(tab.key)}</span>
+                <span className={`flex rounded-full px-5 py-1 ${isActive ? 'bg-brand-soft' : ''}`}><Icon name={tab.icon} size={24} /></span>
+                <span>{t(tab.key)}</span>
               </>
             )}
           </NavLink>

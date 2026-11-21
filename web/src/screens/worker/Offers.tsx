@@ -79,7 +79,7 @@ export default function Offers() {
       {lot.loading && <Skeleton rows={4} />}
       {l && (
         <>
-          <section className="border-2 border-ink bg-white p-3" aria-label={t('lot_title')}>
+          <section className="rounded-3xl bg-white shadow-card p-3" aria-label={t('lot_title')}>
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xl font-bold leading-tight">{lotTitle(l, t)}</p>
@@ -113,7 +113,7 @@ export default function Offers() {
 
           {l.status === 'sold' && (
             <div className="mt-5 space-y-3">
-              {l.sale && <div className="border-2 border-ok bg-white p-3"><p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('sold_to', { buyer: l.sale.buyer })}</p><p className="num text-4xl font-semibold">{inr(l.sale.amount)}</p><p className="mt-1"><Tag tone="bad">{t('simulated')}</Tag></p></div>}
+              {l.sale && <div className="border-2 border-ok bg-white p-3"><p className="text-sm font-medium text-mute">{t('sold_to', { buyer: l.sale.buyer })}</p><p className="num text-4xl font-semibold">{inr(l.sale.amount)}</p><p className="mt-1"><Tag tone="bad">{t('simulated')}</Tag></p></div>}
               <Btn onClick={() => nav(`/receipt/${l.id}`)} icon="download">{t('view_receipt')}</Btn>
             </div>
           )}
@@ -123,7 +123,7 @@ export default function Offers() {
               <H2 right={<SampleTag />}>{t('offers_title')}</H2>
               {offers.loading && <Skeleton rows={2} />}
               {offers.data && offers.data.length > 0 && offers.data[0].fair && (
-                <p className="mb-3 border border-hair bg-white p-3 text-base leading-snug"><span className="num block font-semibold">{t('fair_range', { low: inr(offers.data[0].fair.low), high: inr(offers.data[0].fair.high) })}</span><span className="text-sm text-mute">{t('fair_note')}</span></p>
+                <p className="mb-3 rounded-2xl border border-hair bg-white p-3 text-base leading-snug"><span className="num block font-semibold">{t('fair_range', { low: inr(offers.data[0].fair.low), high: inr(offers.data[0].fair.high) })}</span><span className="text-sm text-mute">{t('fair_note')}</span></p>
               )}
               {offers.data && offers.data.length === 0 && (
                 <EmptyState art="offers" title={t('waiting_offers')} body={t('waiting_hint')} />
@@ -132,7 +132,7 @@ export default function Offers() {
                 {offers.data?.map((o, idx) => {
                   const secs = Math.max(0, Math.round((Date.parse(o.expires_at) - now) / 1000))
                   return (
-                    <li key={o.id} className={`border-2 bg-white ${idx === 0 ? 'border-ink' : 'border-hair'}`}>
+                    <li key={o.id} className={`border-2 bg-white ${idx === 0 ? 'border-hair' : 'border-hair'}`}>
                       <div className="flex items-start justify-between gap-2 p-3">
                         <div className="min-w-0">
                           <p className="flex items-center gap-1 text-lg font-bold leading-tight"><Icon name="shield" size={18} />{o.recycler_name}</p>

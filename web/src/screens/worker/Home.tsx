@@ -46,7 +46,7 @@ export default function Home() {
   return (
     <Screen title="Urban Mine" back={false} brand>
       <div className="flex items-center gap-3">
-        <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center bg-ink font-cond text-2xl font-bold text-paper" aria-hidden>{name.charAt(0)}</span>
+        <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand text-2xl font-bold text-onbrand" aria-hidden>{name.charAt(0)}</span>
         <div className="min-w-0">
           <p className="truncate text-lg font-bold leading-tight">{t('hello', { name })}</p>
           <p className="flex items-center gap-1 text-sm text-mute"><Icon name="pin" size={14} />{me?.workshop?.name.replace('SAMPLE ', '')} · {me?.city}</p>
@@ -54,36 +54,36 @@ export default function Home() {
       </div>
 
       <button onClick={() => { reset(); nav('/scan') }}
-        className="mt-4 flex min-h-28 w-full items-center gap-4 border-2 border-ink bg-amber px-4 text-left active:translate-y-px">
-        <span className="inline-flex h-16 w-16 shrink-0 items-center justify-center border-2 border-ink bg-paper"><Icon name="scan" size={36} /></span>
+        data-tour="scan" className="mt-5 flex min-h-32 w-full items-center gap-4 rounded-3xl bg-brand px-5 text-left text-onbrand shadow-card active:scale-[0.99]">
+        <span className="inline-flex h-18 w-18 shrink-0 items-center justify-center rounded-2xl bg-onbrand/15 p-4"><Icon name="scan" size={36} /></span>
         <span className="flex-1">
-          <span className="block font-cond text-2xl font-bold uppercase leading-tight">{t('scan_cta')}</span>
+          <span className="block text-2xl font-bold leading-tight">{t('scan_cta')}</span>
           <span className="block text-base font-medium leading-snug">{t('scan_sub')}</span>
         </span>
         <Icon name="chevR" size={28} />
       </button>
 
-      <section className="mt-4 border-l-4 border-ink bg-white py-3 pl-3 pr-3" aria-label={t('next_title')}>
-        <p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('next_title')}</p>
+      <section className="mt-4 rounded-3xl bg-gold-soft p-4" aria-label={t('next_title')}>
+        <p className="text-sm font-medium text-mute">{t('next_title')}</p>
         <p className="mt-0.5 text-lg font-bold leading-snug">{t(`next_${next.key}_t`)}</p>
         <p className="mt-1 text-base leading-snug text-mute">{t(`next_${next.key}_b`)}</p>
         <div className="mt-3">
           <button onClick={() => nav(next.key === 'none' ? '/scan' : next.key === 'sold' ? `/receipt/${next.lot!.id}` : `/offers/${next.lot!.id}`)}
-            className="inline-flex min-h-11 items-center gap-2 border border-ink bg-ink px-4 font-semibold text-paper">
+            className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-ink px-5 font-semibold text-paper">
             {t(next.key === 'none' ? 'scan_cta' : next.key === 'sold' ? 'view_receipt' : 'open_lot')}<Icon name="chevR" size={18} />
           </button>
         </div>
       </section>
 
       <H2 right={<SampleTag />}>{t('earn_title')}</H2>
-      <div className="grid grid-cols-3 gap-3 border-b border-hair pb-3">
+      <div data-tour="earnings" className="grid grid-cols-3 gap-3 rounded-3xl bg-white p-4 shadow-card">
         <Stat label={t('earned')} value={inr(earned)} />
         <Stat label={t('status.listed')} value={active.filter((l) => l.status === 'listed').length} />
         <Stat label={t('kpi_lots')} value={list.length} />
       </div>
       <p className="mt-1 text-sm text-mute">{t('earn_note')}</p>
 
-      <H2 right={<Link to="/lots" className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">{t('see_all')}</Link>}>{t('active_lots')}</H2>
+      <div data-tour="lots"><H2 right={<Link to="/lots" className="inline-flex min-h-11 items-center text-sm font-semibold underline underline-offset-4">{t('see_all')}</Link>}>{t('active_lots')}</H2></div>
       {lots.loading ? <Skeleton rows={2} /> : active.length > 0 ? (
         <Rule>{active.slice(0, 3).map((l) => <LotRow key={l.id} lot={l} />)}</Rule>
       ) : (
@@ -111,7 +111,7 @@ export default function Home() {
 
       <H2>{t('recent_activity')}</H2>
       {activity.length === 0 ? <p className="py-3 text-sm text-mute">{t('no_activity')}</p> : (
-        <ol className="divide-y divide-hair border-y border-hair">
+        <ol className="divide-y divide-hair rounded-3xl bg-white px-4 shadow-card">
           {activity.map(({ lot, text }) => (
             <li key={lot.id}>
               <Link to={lot.status === 'sold' ? `/receipt/${lot.id}` : `/offers/${lot.id}`} className="flex min-h-14 items-center justify-between gap-2 py-2">

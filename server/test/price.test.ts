@@ -30,7 +30,7 @@ test('a material with no rate throws instead of being valued at zero', async () 
 
 test('rates show change versus yesterday', async () => {
   const rates = await getRates(db, 'Delhi');
-  assert.equal(rates.copper.rate, 640);
+  assert.equal(rates.copper.rate, 610);
   assert.equal(rates.copper.change, -6);
   assert.equal(rates.aluminium.change, 2);
   assert.equal(rates.steel.change, 0);
@@ -38,7 +38,7 @@ test('rates show change versus yesterday', async () => {
 
 test('type-only estimate averages models of that type', async () => {
   const comp = (await typeComposition(db, 'phone'))!;
-  assert.equal(comp.copper, Math.round((12 + 13 + 11) / 3));
+  assert.equal(comp.copper, Math.round((12 + 13 + 11 + 15 * 10) / 13));
   assert.equal(await typeComposition(db, 'spaceship'), null);
 });
 
@@ -62,9 +62,9 @@ test('stale rows are found by age', async () => {
 });
 
 test('auditor edit updates the rate and today history, and the change shows', async () => {
-  await setRate(db, 'copper', 'Delhi', 700, 'SAMPLE: auditor edit', new Date('2026-11-21T08:00:00Z'));
+  await setRate(db, 'copper', 'Delhi', 670, 'SAMPLE: auditor edit', new Date('2026-11-21T08:00:00Z'));
   const r = (await getRates(db, 'Delhi')).copper;
-  assert.equal(r.rate, 700);
-  assert.equal(r.change, 60); // vs 640 on 2026-11-20
+  assert.equal(r.rate, 670);
+  assert.equal(r.change, 60); // vs 610 on 2026-11-20
   await assert.rejects(() => setRate(db, 'copper', 'Delhi', 0, 'x'), /positive/);
 });

@@ -18,7 +18,7 @@ export default function Photo({ hash, className = '' }: { hash: string; classNam
   if (url === undefined) return <div role="status" aria-label={t('loading')} className={`aspect-[4/3] w-full animate-pulse border border-hair bg-sunk ${className}`} />
   if (url === null) {
     return (
-      <div className={`flex aspect-[4/3] flex-col items-center justify-center border border-dashed border-ink bg-sunk p-1 text-center ${className}`}>
+      <div className={`flex aspect-[4/3] flex-col items-center justify-center border border-dashed border-hair bg-sunk p-1 text-center ${className}`}>
         <span className="text-sm font-semibold">{t('no_image')}</span>
         <span className="num text-sm text-mute">{hash.slice(0, 8)}</span>
       </div>
@@ -33,6 +33,6 @@ export default function Photo({ hash, className = '' }: { hash: string; classNam
         setRetried(true)
         photoUrl(hash).then(setUrl)
       }}
-      className={`aspect-[4/3] w-full border border-ink object-cover ${className}`} />
+      className={`aspect-[4/3] w-full border border-hair object-cover ${className}`} />
   )
 }

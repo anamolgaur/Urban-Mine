@@ -30,10 +30,10 @@ export default function LotReview() {
 
   return (
     <>
-      <dl className="grid grid-cols-2 border border-ink bg-white sm:grid-cols-3 lg:grid-cols-6">
+      <dl className="grid grid-cols-2 rounded-2xl border border-hair bg-white sm:grid-cols-3 lg:grid-cols-6">
         {kpis.map(([label, v, warn]) => (
           <div key={label} className="border-b border-r border-hair p-3 last:border-r-0">
-            <dt className="text-sm font-semibold uppercase tracking-wide text-mute">{label}</dt>
+            <dt className="text-sm font-medium text-mute">{label}</dt>
             <dd className="num flex items-center gap-1 text-3xl font-semibold">{warn && <Icon name="alert" size={22} className="text-bad" />}{v}</dd>
           </div>
         ))}
@@ -42,16 +42,16 @@ export default function LotReview() {
       <div className="mt-4 flex flex-wrap items-center gap-2" role="group" aria-label={t('filter')}>
         {(['all', 'flagged', 'held'] as const).map((f) => (
           <button key={f} aria-pressed={filter === f} onClick={() => setFilter(f)}
-            className={`inline-flex min-h-11 items-center gap-1 border border-ink px-3 text-base font-semibold ${filter === f ? 'bg-ink text-paper' : 'bg-white'}`}>{filter === f && <Icon name="check" size={16} />}{t('filter_' + f)}</button>
+            className={`inline-flex min-h-11 items-center gap-1 rounded-2xl border border-hair px-3 text-base font-semibold ${filter === f ? 'bg-brand text-onbrand' : 'bg-white'}`}>{filter === f && <Icon name="check" size={16} />}{t('filter_' + f)}</button>
         ))}
         <span className="text-base text-mute">{rows.length} {t('lots_word')}</span>
       </div>
 
       {rows.length === 0 ? <div className="mt-3"><EmptyState art="shield" title={t('no_findings')} /></div> : (
-        <div className="mt-3 overflow-x-auto border border-ink bg-white">
+        <div className="mt-3 overflow-x-auto rounded-2xl border border-hair bg-white">
           <table className="w-full min-w-[860px] text-left text-base">
             <thead>
-              <tr className="border-b border-ink font-mono text-sm uppercase">
+              <tr className="border-b border-hair text-sm">
                 {['col_lot', 'col_worker', 'col_items', 'col_weight', 'col_safety', 'col_flags', 'col_status', 'col_chain'].map((c) => <th key={c} className="px-3 py-2 font-semibold">{t(c)}</th>)}
               </tr>
             </thead>
@@ -63,7 +63,7 @@ export default function LotReview() {
                   <td className="px-3 py-3">{lotTitle(l, t)}</td>
                   <td className="num px-3 py-3">{kg(l.weight_kg)}</td>
                   <td className="num px-3 py-3">{l.steps_done}/{l.steps_total}</td>
-                  <td className="px-3 py-3"><span className="flex flex-wrap gap-1">{openFlags(l).length ? openFlags(l).map((f) => <span key={f.kind} className="inline-flex items-center gap-1 border border-bad px-1.5 py-0.5 font-mono text-sm font-semibold uppercase text-bad"><Icon name="alert" size={14} />{t('flag.' + f.kind)}</span>) : <span className="text-mute">–</span>}</span></td>
+                  <td className="px-3 py-3"><span className="flex flex-wrap gap-1">{openFlags(l).length ? openFlags(l).map((f) => <span key={f.kind} className="inline-flex items-center gap-1 border border-bad px-1.5 py-0.5 text-sm font-semibold text-bad"><Icon name="alert" size={14} />{t('flag.' + f.kind)}</span>) : <span className="text-mute">–</span>}</span></td>
                   <td className="px-3 py-3"><StatusChip status={l.status} /></td>
                   <td className="px-3 py-3">{l.chain_ok ? <Tag tone="ok">✓ {t('chain_ok')}</Tag> : <Tag tone="bad">✕ {t('chain_bad')}</Tag>}</td>
                 </tr>
@@ -127,7 +127,7 @@ export function LotDetail() {
             <ul className="space-y-3">
               {lot.flags.map((f) => (
                 <li key={f.kind} className="border-2 border-bad bg-white">
-                  <p className="flex items-center gap-2 bg-bad px-3 py-1.5 text-base font-bold text-white"><Icon name="alert" size={20} />{t('flag.' + f.kind)}<span className="ml-auto font-mono text-sm font-normal uppercase">{f.status}</span></p>
+                  <p className="flex items-center gap-2 bg-bad px-3 py-1.5 text-base font-bold text-onbrand"><Icon name="alert" size={20} />{t('flag.' + f.kind)}<span className="ml-auto text-sm font-normal">{f.status}</span></p>
                   <div className="p-3"><p className="text-base">{f.detail}</p><p className="mt-1 text-sm text-mute">{t('flag_why.' + f.kind)}</p></div>
                 </li>
               ))}
@@ -135,14 +135,14 @@ export function LotDetail() {
           )}
 
           <H2>{t('chain_panel')}</H2>
-          <div className="border border-ink bg-white p-3">
+          <div className="rounded-2xl border border-hair bg-white p-3">
             <ul className="divide-y divide-hair">
               <Check ok={chain.hash_ok} label={t('chain_hash_ok')} />
               <Check ok={chain.link_ok} label={first ? t('chain_first') : t('chain_link_ok')} />
             </ul>
             <dl className="mt-2 space-y-1 border-t border-hair pt-2">
-              <div><dt className="text-sm font-semibold uppercase text-mute">{t('record_hash')}</dt><dd className="num break-all text-sm">{lot.hash}</dd></div>
-              <div><dt className="text-sm font-semibold uppercase text-mute">{t('prev')}</dt><dd className="num break-all text-sm text-mute">{lot.prev_hash}</dd></div>
+              <div><dt className="text-sm font-semibold text-mute">{t('record_hash')}</dt><dd className="num break-all text-sm">{lot.hash}</dd></div>
+              <div><dt className="text-sm font-semibold text-mute">{t('prev')}</dt><dd className="num break-all text-sm text-mute">{lot.prev_hash}</dd></div>
             </dl>
             <p className="mt-2 text-sm text-mute">{t('chain_note')}</p>
           </div>
@@ -174,7 +174,7 @@ export function LotDetail() {
         </section>
       </div>
 
-      <div className="fixed bottom-0 left-0 right-0 z-30 border-t-2 border-ink bg-paper">
+      <div className="fixed bottom-0 left-0 right-0 z-30 border-t-2 border-hair bg-paper">
         <div className="mx-auto max-w-6xl px-4 py-3">
           {err && <ErrorNote message={err} />}
           {msg && <div className="mb-2"><Banner tone="ok" icon="check">{msg}</Banner></div>}

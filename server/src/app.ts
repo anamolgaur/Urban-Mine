@@ -8,6 +8,7 @@ import type { Db } from './db.ts';
 import type { Identity, TokenVerifier } from './auth.ts';
 import { getSafetyPack, listSafetyTypes, isLang, type SafetyPack } from './safety.ts';
 import { estimate, getRates, setRate, staleRates } from './price.ts';
+import { RESALE, resaleRange } from './resale.ts';
 import { runScan, saveFeedback } from './scan.ts';
 import { StubClassifier, TesseractOcr, type Classifier, type Ocr } from './vision.ts';
 import { loadModels } from './matcher.ts';
@@ -49,8 +50,12 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   const userForIdentity = async (id: Identity): Promise<Row | null> => {
     const u = await db.prepare('SELECT * FROM app_user WHERE auth_id = ?').get(id.sub) as Row | undefined;
     if (u) return u;
-    if (!id.phone) return null;
-    return (await db.prepare('UPDATE app_user SET auth_id = ? WHERE phone = ? AND auth_id IS NULL RETURNING *').get(id.sub, id.phone) as Row | undefined) ?? null;
+    if (id.phone) {
+      const byPhone = await db.prepare('UPDATE app_user SET auth_id = ? WHERE phone = ? AND auth_id IS NULL RETURNING *').get(id.sub, id.phone) as Row | undefined;
+      if (byPhone) return byPhone;
+    }
+    if (id.email) return (await db.prepare('UPDATE app_user SET auth_id = ? WHERE email = ? AND auth_id IS NULL RETURNING *').get(id.sub, id.email) as Row | undefined) ?? null;
+    return null;
   };
 
   /** Who is calling: the account (null if signed in but not set up yet) and the sign-in identity. */
@@ -89,7 +94,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   app.get('/api/me', async (req) => {
     const { user: u, id } = await whoIs(req);
     // signed in, but no account yet: the app should run onboarding
-    if (!u) return { user: null, needs_onboarding: true, phone: id?.phone ?? null };
+    if (!u) return { user: null, needs_onboarding: true, phone: id?.phone ?? null, email: id?.email ?? null };
     const w = u.workshop_id ? (await db.prepare('SELECT * FROM workshop WHERE id = ?').get(u.workshop_id) as Row) : null;
     const { auth_id: _a, ...user } = u;
     return { user, workshop: w, city: cityOf(w?.address) };
@@ -98,7 +103,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   /** First-time account setup, after OTP sign-in. The role is chosen here once and cannot be changed later. */
   app.post('/api/onboarding', async (req) => {
     const { user: existing, id } = await whoIs(req);
-    if (!id) throw E(400, 'Onboarding needs a signed-in phone number');
+    if (!id) throw E(400, 'Onboarding needs a signed-in account');
     if (existing) throw E(409, 'Your account is already set up');
     const b = (req.body ?? {}) as Row;
     if (!['worker', 'recycler', 'repairer'].includes(b.role)) throw E(400, 'Choose worker, recycler or repairer');
@@ -121,8 +126,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     }
     const userId = 'u-' + randomUUID();
     // workers start approved; recyclers and repairers wait for an auditor
-    await db.prepare('INSERT INTO app_user (id, role, name, phone, language, workshop_id, auth_id, approval, kyc_status, consented_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-      .run(userId, b.role, name, id.phone, language, workshopId, id.sub, b.role === 'worker' ? 'approved' : 'pending', 'simulated', now, now);
+    await db.prepare('INSERT INTO app_user (id, role, name, phone, email, language, workshop_id, auth_id, approval, kyc_status, consented_at, created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
+      .run(userId, b.role, name, id.phone, id.email ?? null, language, workshopId, id.sub, b.role === 'worker' ? 'approved' : 'pending', 'simulated', now, now);
     return { id: userId, role: b.role, approval: b.role === 'worker' ? 'approved' : 'pending' };
   });
   app.delete('/api/me/data', async (req) => {
@@ -143,7 +148,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
       await t.prepare('DELETE FROM repairer_listing WHERE user_id = ?').run(u.id);
       await t.prepare('DELETE FROM photo_upload WHERE user_id = ?').run(u.id);
       await t.prepare('DELETE FROM vision_usage WHERE user_id = ?').run(u.id);
-      await t.prepare("UPDATE app_user SET name = 'Deleted user', phone = NULL, auth_id = NULL, vision_consent_at = NULL WHERE id = ?").run(u.id);
+      await t.prepare("UPDATE app_user SET name = 'Deleted user', phone = NULL, email = NULL, auth_id = NULL, vision_consent_at = NULL WHERE id = ?").run(u.id);
     });
     for (const h of hashes) {
       if (!HASH.test(h)) continue;
@@ -157,11 +162,18 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
 
   // ---------- reference data ----------
   app.get('/api/models', async () => await loadModels(db));
+  app.get<{ Querystring: { type?: string } }>('/api/resale', async (req) => RESALE.filter((m) => !req.query.type || m.type === req.query.type));
   app.get<{ Querystring: { city?: string } }>('/api/rates', async (req) => await getRates(db, req.query.city ?? 'Delhi'));
   app.get<{ Querystring: { city?: string; modelId?: string; type?: string } }>('/api/estimate', async (req) => {
     const city = req.query.city ?? 'Delhi';
     const grade = (req.query as Row).grade;
     if (grade !== undefined && !isGrade(grade)) throw E(400, 'grade must be A, B, C or D');
+    const q = req.query as Row;
+    // A WORKING device is priced by what it sells for second-hand, not by its scrap metal.
+    if (q.works === 'true') {
+      const r = resaleRange({ resaleId: q.resaleId, condition: q.condition, custom: q.custom ? Number(q.custom) : null });
+      if (r) return { lines: [], total: r.total, low: r.low, high: r.high, basis: 'resale', sample: true, weight_kg: ({ phone: 0.2, tablet: 0.5, laptop: 2, charger: 0.12, lcd_monitor: 3.5, crt_monitor: 11, router: 0.3, set_top_box: 0.4 } as Row)[String(q.type)] ?? 0.5, resale: { model: r.model, condition: r.condition }, rates: await getRates(db, city) };
+    }
     const est = await estimate(db, city, { modelId: req.query.modelId, type: req.query.type, grade });
     if (!est) throw E(404, 'No composition data for this device');
     return { ...est, rates: await getRates(db, city) };
@@ -324,7 +336,9 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const b = req.body as any;
     if (!Array.isArray(b?.items) || !b.items.length || !b.items.every((i: any) => typeof i.type === 'string' && (i.qty ?? 1) >= 1 && (i.grade === undefined || isGrade(i.grade)))) throw E(400, 'items required');
     // the lot record is permanent: keep only the fields we know
-    b.items = b.items.map((i: any) => ({ ...(i.model_id ? { model_id: String(i.model_id) } : {}), type: i.type, ...(i.qty !== undefined ? { qty: i.qty } : {}), ...(i.grade ? { grade: i.grade, grade_source: i.grade_source === 'worker' ? 'worker' : 'ai' } : {}) }));
+    b.items = b.items.map((i: any) => ({ ...(i.model_id ? { model_id: String(i.model_id) } : {}), type: i.type, ...(i.qty !== undefined ? { qty: i.qty } : {}), ...(i.grade ? { grade: i.grade, grade_source: i.grade_source === 'worker' ? 'worker' : 'ai' } : {}),
+      ...(i.works === true ? { works: true, condition: ['good', 'fair', 'poor'].includes(i.condition) ? i.condition : 'good',
+        ...(i.resale_id ? { resale_id: String(i.resale_id).slice(0, 40) } : {}), ...(Number(i.custom_price) > 0 ? { custom_price: Math.round(Number(i.custom_price)) } : {}) } : {}) }));
     if (!(b.weight_kg > 0)) throw E(400, 'weight_kg must be positive');
     if (!(b.steps_total >= 0) || !(b.steps_done >= 0) || b.steps_done > b.steps_total) throw E(400, 'invalid step counts');
     if (!Array.isArray(b.photo_hashes) || !b.photo_hashes.every((h: string) => HASH.test(h))) throw E(400, 'photo_hashes must be sha-256 hashes');
@@ -350,12 +364,13 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const ws = await db.prepare('SELECT w.address FROM workshop w JOIN app_user x ON x.workshop_id = w.id WHERE x.id = ?').get(u.id) as Row | undefined;
     let base = 0;
     for (const it of JSON.parse(l.items) as Row[]) {
-      const e = await estimate(db, cityOf(ws?.address), { modelId: it.model_id, type: it.type });
+      const rs = it.works ? resaleRange({ resaleId: it.resale_id, condition: it.condition, custom: it.custom_price }) : null;
+      const e = rs ?? await estimate(db, cityOf(ws?.address), { modelId: it.model_id, type: it.type });
       if (e) base += e.total * (it.qty ?? 1);
     }
     base = Math.max(10, Math.round(base));
-    await placeBid(db, { lotId: l.id, recyclerId: 'u-recycler-1', amount: Math.round(base * 0.95), pickupTerms: 'SAMPLE: pickup tomorrow 10am', minutes: 30 });
-    await placeBid(db, { lotId: l.id, recyclerId: 'u-recycler-2', amount: Math.round(base * 0.85), pickupTerms: 'SAMPLE: pickup today 6pm', minutes: 15 });
+    await placeBid(db, { lotId: l.id, recyclerId: 'u-recycler-1', amount: Math.round(base * 1.08), pickupTerms: 'SAMPLE: pickup tomorrow 10am', minutes: 30 });
+    await placeBid(db, { lotId: l.id, recyclerId: 'u-recycler-2', amount: Math.round(base * 1.0), pickupTerms: 'SAMPLE: pickup today 6pm', minutes: 15 });
     return await withFair(l, await offersFor(db, l.id));
   });
   app.post<{ Params: { id: string } }>('/api/lots/:id/list', async (req) => {
@@ -394,7 +409,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const city = cityOf(ws?.address);
     let low = 0, high = 0;
     for (const it of JSON.parse(lotRow.items) as Row[]) {
-      const e = await estimate(db, city, { modelId: it.model_id, type: it.type, grade: it.grade });
+      const rs = it.works ? resaleRange({ resaleId: it.resale_id, condition: it.condition, custom: it.custom_price }) : null;
+      const e = rs ?? await estimate(db, city, { modelId: it.model_id, type: it.type, grade: it.grade });
       if (e) { low += e.low * (it.qty ?? 1); high += e.high * (it.qty ?? 1); }
     }
     return { workshop_address: (ws?.address as string | undefined) ?? null, expected: { low: Math.round(low), high: Math.round(high) } };
@@ -419,6 +435,12 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   app.post<{ Params: { id: string } }>('/api/lots/:id/bids', async (req) => {
     const u = await actor(req, ['recycler']);
     const b = req.body as { amount: number; pickup_terms?: string; minutes?: number };
+    // Protect workers from lowball offers: a bid must reach at least 80% of the lot's fair low estimate.
+    const lotRow = await db.prepare('SELECT * FROM lot WHERE id = ?').get(req.params.id) as Row | undefined;
+    if (lotRow) {
+      const floor = Math.round((await lotContext(lotRow)).expected.low * 0.8);
+      if (floor > 0 && Number(b.amount) < floor) throw E(400, `Offer too low. The minimum for this lot is Rs ${floor}.`, 'bid_too_low');
+    }
     return await placeBid(db, { lotId: req.params.id, recyclerId: u.id, amount: Number(b.amount), pickupTerms: b.pickup_terms ?? '', minutes: b.minutes });
   });
 

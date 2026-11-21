@@ -12,7 +12,7 @@ test('offers come highest first with a countdown; expired offers vanish', async 
   const db = await fresh();
   const id = await listedLot(db, 'u-worker-1');
   const offers = await offersFor(db, id);
-  assert.deepEqual(offers.map((o) => o.amount), [195, 170]);
+  assert.deepEqual(offers.map((o) => o.amount), [82, 74]);
   assert.ok(offers[0].seconds_left > 0);
   assert.equal((await offersFor(db, id, new Date(Date.now() + 3 * 3600 * 1000))).length, 0);
 });
@@ -40,7 +40,7 @@ test('held lots cannot be accepted until released', async () => {
   await holdLot(db, id);
   await assert.rejects(() => acceptBid(db, top.id, 'u-worker-1'), /hold/);
   await releaseLot(db, id);
-  assert.equal((await acceptBid(db, top.id, 'u-worker-1')).amount, 195);
+  assert.equal((await acceptBid(db, top.id, 'u-worker-1')).amount, 82);
 });
 
 test('only recyclers bid, only on listed lots, only positive amounts', async () => {
@@ -60,7 +60,7 @@ test('receipt exists only after sale, carries the hash, and renders a PDF', asyn
   await assert.rejects(() => receiptData(db, id), /sold/);
   await acceptBid(db, (await offersFor(db, id))[0].id, 'u-worker-1');
   const d = await receiptData(db, id);
-  assert.equal(d.amount, 195);
+  assert.equal(d.amount, 82);
   assert.equal(d.hash.length, 64);
   assert.match(d.seller.phone, /^x+\d{4}$/);
   const pdf = await renderReceiptPdf(d);

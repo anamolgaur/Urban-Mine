@@ -30,3 +30,49 @@ export const MODELS: ModelRow[] = [
   { id: 'stb-cast-hd', type: 'set_top_box', brand: 'Cast', model: 'HD Set-top Box (SAMPLE)', label_patterns: ['cast\\s*hd', 'cs-hd\\w*'], weight_kg: 0.4,
     composition: { plastic: 160, steel: 90, copper: 40, pcb: 95, aluminium: 15 }, repair_notes: 'Remote or power-supply fault is typical.' },
 ];
+
+// Real Indian-market brands, matched from label text (OCR or typed). Composition is a per-type typical average, scaled by weight.
+// Model names are brand families, not exact models. Grams are approximate, for pricing guidance only.
+const TEMPLATE: Record<string, { w: number; c: Record<string, number> }> = {
+  phone: { w: 0.19, c: { plastic: 25, aluminium: 35, steel: 15, copper: 15, pcb: 30, battery_li: 50, glass: 20 } },
+  laptop: { w: 2.0, c: { plastic: 600, aluminium: 300, steel: 250, copper: 130, pcb: 280, battery_li: 360, glass: 80 } },
+  tablet: { w: 0.5, c: { plastic: 50, aluminium: 150, steel: 20, copper: 30, pcb: 60, battery_li: 120, glass: 70 } },
+  charger: { w: 0.12, c: { plastic: 50, copper: 30, steel: 12, pcb: 25, aluminium: 3 } },
+  lcd_monitor: { w: 3.5, c: { plastic: 1450, glass: 880, steel: 500, copper: 150, pcb: 340, aluminium: 180 } },
+  router: { w: 0.3, c: { plastic: 160, copper: 25, steel: 20, pcb: 85, aluminium: 10 } },
+  set_top_box: { w: 0.4, c: { plastic: 160, steel: 90, copper: 40, pcb: 95, aluminium: 15 } },
+};
+const BRANDS: [string, string, string, string[]][] = [
+  // type, id, label, patterns
+  ['phone', 'samsung', 'Samsung Galaxy', ['samsung', 'galaxy', 'sm-[a-z]\\d{3}']],
+  ['phone', 'apple', 'Apple iPhone', ['iphone', 'model a[12]\\d{3}']],
+  ['phone', 'xiaomi', 'Xiaomi / Redmi / Poco', ['xiaomi', 'redmi', '\\bpoco\\b', '\\bmi \\d']],
+  ['phone', 'vivo', 'Vivo', ['\\bvivo\\b', '\\bv2\\d{3}\\b']],
+  ['phone', 'oppo', 'Oppo', ['\\boppo\\b', 'cph\\d{4}']],
+  ['phone', 'realme', 'Realme', ['realme', 'rmx\\d{4}']],
+  ['phone', 'oneplus', 'OnePlus', ['oneplus', 'one plus']],
+  ['phone', 'nokia', 'Nokia', ['nokia', '\\bta-\\d{4}']],
+  ['phone', 'motorola', 'Motorola', ['motorola', '\\bmoto\\b']],
+  ['phone', 'itel', 'itel / Tecno / Infinix', ['\\bitel\\b', 'tecno', 'infinix']],
+  ['laptop', 'hp', 'HP', ['hewlett', '\\bhp\\b.*(laptop|notebook|pavilion|elitebook|probook)', 'pavilion', 'elitebook', 'probook']],
+  ['laptop', 'dell', 'Dell', ['\\bdell\\b', 'inspiron', 'latitude', 'vostro']],
+  ['laptop', 'lenovo', 'Lenovo', ['lenovo', 'thinkpad', 'ideapad']],
+  ['laptop', 'acer', 'Acer', ['\\bacer\\b', 'aspire', 'travelmate']],
+  ['laptop', 'asus', 'Asus', ['\\basus\\b', 'vivobook', 'zenbook']],
+  ['laptop', 'macbook', 'Apple MacBook', ['macbook']],
+  ['tablet', 'ipad', 'Apple iPad', ['\\bipad\\b']],
+  ['tablet', 'galaxytab', 'Samsung Galaxy Tab', ['galaxy tab', 'sm-t\\d{3}', 'sm-x\\d{3}']],
+  ['charger', 'phonechg', 'Phone charger (any brand)', ['travel adapter', 'usb power adapter', 'output.{0,12}5v', 'charger']],
+  ['charger', 'laptopchg', 'Laptop adapter (any brand)', ['ac adapter', 'output.{0,12}19(\\.5)?v', 'output.{0,12}20v']],
+  ['lcd_monitor', 'monitor', 'LCD/LED monitor (any brand)', ['lcd monitor', 'led monitor', 'monitor']],
+  ['router', 'tplink', 'TP-Link router', ['tp-?link', 'archer']],
+  ['router', 'dlink', 'D-Link router', ['d-?link']],
+  ['router', 'jio', 'JioFiber / Airtel router', ['jiofiber', '\\bjio\\b', 'airtel xstream']],
+  ['set_top_box', 'dth', 'DTH set-top box', ['tata ?(sky|play)', 'dish ?tv', 'd2h', 'sun direct', 'set ?top']],
+];
+for (const [type, id, label, label_patterns] of BRANDS) {
+  const t = TEMPLATE[type];
+  MODELS.push({ id: `real-${id}`, type, brand: label.split(' ')[0], model: `${label} (SAMPLE avg)`, label_patterns, weight_kg: t.w, composition: t.c,
+    repair_notes: 'Typical for this brand family. Check the exact model before quoting.' });
+}
+

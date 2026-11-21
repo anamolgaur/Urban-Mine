@@ -26,9 +26,9 @@ function GuideCard({ g }: { g: Guide }) {
       </button>
       {open && (
         <div className="pb-4 pl-9">
-          <p className="text-sm font-bold uppercase text-mute">{t('tools_needed')}</p>
+          <p className="text-sm font-bold text-mute">{t('tools_needed')}</p>
           <ul className="mb-3 list-disc pl-5 text-sm">{g.tools.map((x, i) => <li key={i}>{pick(x)}</li>)}</ul>
-          <p className="text-sm font-bold uppercase text-mute">{t('guide_steps')}</p>
+          <p className="text-sm font-bold text-mute">{t('guide_steps')}</p>
           <ol className="list-decimal pl-5 text-sm">{g.steps.map((x, i) => <li key={i} className="mb-1">{pick(x)}</li>)}</ol>
         </div>
       )}
@@ -91,10 +91,10 @@ export default function Repair() {
   const tabs: [Tab, string][] = [['fix', 'tab_fix'], ['nearby', 'tab_nearby'], ['offer', 'tab_offer']]
   return (
     <Screen title={t('repair_title')} back={false}>
-      <div role="tablist" aria-label={t('repair_title')} className="grid grid-cols-3 border border-ink">
+      <div role="tablist" aria-label={t('repair_title')} className="grid grid-cols-3 border border-hair">
         {tabs.map(([k, label]) => (
           <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)}
-            className={`min-h-12 border-r border-ink px-1 text-sm font-bold last:border-r-0 ${tab === k ? 'bg-ink text-paper' : 'bg-white'}`}>{t(label)}</button>
+            className={`min-h-12 border-r border-hair px-1 text-sm font-bold last:border-r-0 ${tab === k ? 'bg-brand text-onbrand' : 'bg-white'}`}>{t(label)}</button>
         ))}
       </div>
       {tab === 'fix' && <Fix />}

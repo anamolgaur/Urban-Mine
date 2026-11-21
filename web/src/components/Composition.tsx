@@ -11,15 +11,15 @@ export default function Composition({ est, qty }: { est: Estimate; qty: number }
   const total = lines.reduce((s, l) => s + l.value, 0) || 1
   return (
     <div>
-      <div className="flex h-8 w-full border border-ink" role="img" aria-label={lines.map((l) => `${t('mat.' + l.material)} ${Math.round((100 * l.value) / total)}%`).join(', ')}>
+      <div className="flex h-8 w-full border border-hair" role="img" aria-label={lines.map((l) => `${t('mat.' + l.material)} ${Math.round((100 * l.value) / total)}%`).join(', ')}>
         {lines.map((l, i) => (
           <div key={l.material} style={{ width: `${(100 * l.value) / total}%`, background: i === 0 ? '#F2A20C' : SHADES[Math.min(i, SHADES.length - 1)] }}
-            className="border-r border-ink last:border-r-0" />
+            className="border-r border-hair last:border-r-0" />
         ))}
       </div>
       <table className="mt-3 w-full text-sm">
         <thead>
-          <tr className="border-b border-ink text-left font-mono text-sm uppercase">
+          <tr className="border-b border-hair text-left text-sm">
             <th className="py-1 font-semibold">{t('material')}</th>
             <th className="py-1 text-right font-semibold">{t('weight')}</th>
             <th className="py-1 text-right font-semibold">{t('rate_kg')}</th>
@@ -32,7 +32,7 @@ export default function Composition({ est, qty }: { est: Estimate; qty: number }
             return (
               <tr key={l.material} className="border-b border-hair">
                 <td className="py-2">
-                  <span className="mr-2 inline-block h-3 w-3 border border-ink align-middle" style={{ background: i === 0 ? '#F2A20C' : SHADES[Math.min(i, SHADES.length - 1)] }} aria-hidden />
+                  <span className="mr-2 inline-block h-3 w-3 border border-hair align-middle" style={{ background: i === 0 ? '#F2A20C' : SHADES[Math.min(i, SHADES.length - 1)] }} aria-hidden />
                   {t('mat.' + l.material)}
                 </td>
                 <td className="num py-2 text-right">{Math.round(l.grams * qty)} g</td>
