@@ -81,6 +81,14 @@ A worker who agrees can have photos of a device graded **A to D** by a Claude vi
 3. **Privacy.** Nothing is sent until the worker taps Allow in the app, and they can withdraw in Profile. At most 3 downscaled photos per check are sent to Anthropic's API under its terms. The answer is stored per photo set, so the same photos are never sent twice. The grade is saved inside the lot record, so the hash chain protects it. Tell users in your own notice that photos are processed by Anthropic.
 4. Every grade is an AI estimate from photos, not an appraisal. The fair range is built from SAMPLE rates and is a guide, not a promise.
 
+## 0. Simplest: one Render service for everything
+
+The server can serve the built web app itself, so a single Render web service gives you one address for the app and the API. There is nothing to set up on Vercel and no CORS to configure.
+
+- Build command: `npm install` (on Render this also builds the web app: `scripts/render-build.mjs` runs only there). Start command: `npm start`.
+- Environment variables: `NODE_VERSION`, `NODE_ENV=production`, `DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`. The web build reuses `SUPABASE_URL` and `SUPABASE_ANON_KEY`, so you do not add the `VITE_` ones.
+- Open the service's `.onrender.com` address on your phone. Sections 2 and 3 below describe the split setup (API on Render, web app on Vercel or a Render Static Site) if you prefer it.
+
 ## 2. API host (Render example)
 
 Shortcut: the repo has a `render.yaml` Blueprint. In Render choose **New → Blueprint**, pick the repo, and fill in the values it asks for (`DATABASE_URL`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `CORS_ORIGIN`, and optionally the two secret keys). It sets the Node version, build and start commands, and health check for you. The manual steps below do the same thing.

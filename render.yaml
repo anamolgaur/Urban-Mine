@@ -1,4 +1,5 @@
-# Render Blueprint: New > Blueprint > pick this repo. Render creates the API service from this file.
+# Render Blueprint: New > Blueprint > pick this repo. ONE service hosts both the API and the web app at one address.
+# `npm install` also builds the web app on Render (scripts/render-build.mjs), and the server then serves it: no Vercel, no CORS to set up.
 # Values marked sync:false are secrets or per-environment: Render asks you for them in its dashboard. Never put them in this file.
 services:
   - type: web
@@ -6,7 +7,7 @@ services:
     runtime: node
     region: singapore          # closest Render region to India
     plan: free                 # free instances sleep when idle: use a paid plan for a live service
-    buildCommand: npm install --omit=dev
+    buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -19,8 +20,6 @@ services:
       - key: SUPABASE_URL           # project URL (public)
         sync: false
       - key: SUPABASE_ANON_KEY      # publishable key (public)
-        sync: false
-      - key: CORS_ORIGIN            # your Vercel address, e.g. https://urban-mine.vercel.app (no trailing slash)
         sync: false
       - key: SUPABASE_SERVICE_ROLE_KEY   # optional: private photo storage (server only, secret)
         sync: false

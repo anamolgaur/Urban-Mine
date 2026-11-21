@@ -1,6 +1,8 @@
 import Fastify, { type FastifyRequest } from 'fastify';
 import cors from '@fastify/cors';
-import { resolve } from 'node:path';
+import fastifyStatic from '@fastify/static';
+import { existsSync } from 'node:fs';
+import { resolve, join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { Db } from './db.ts';
 import type { Identity, TokenVerifier } from './auth.ts';
@@ -20,7 +22,7 @@ import { LocalPhotoStore, sniffImage, type PhotoStore } from './photostore.ts';
 import { lotView, lotsFor, chainStatus, chainDetail } from './views.ts';
 
 type Row = Record<string, any>;
-export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string; /** Where photos live. Defaults to local disk in uploadsDir. */ photos?: PhotoStore; /** Photo-based condition grading. Defaults to none (the photo check says it is not available). */ assessor?: ConditionAssessor; /** Photo checks per person per day. */ visionDailyLimit?: number; /** Checks sign-in tokens (Supabase). */ verifier?: TokenVerifier; /** Accept the X-User-Id header as identity (demo and tests only). Defaults to on when there is no verifier. */ demoLogin?: boolean; /** Allowed web origins (CORS). Omit to allow any origin (dev). */ corsOrigin?: string[] };
+export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string; /** Where photos live. Defaults to local disk in uploadsDir. */ photos?: PhotoStore; /** Photo-based condition grading. Defaults to none (the photo check says it is not available). */ assessor?: ConditionAssessor; /** Photo checks per person per day. */ visionDailyLimit?: number; /** A built web app (web/dist) to serve from this same server, so one service hosts both. Ignored if it has no index.html. */ webDir?: string; /** Checks sign-in tokens (Supabase). */ verifier?: TokenVerifier; /** Accept the X-User-Id header as identity (demo and tests only). Defaults to on when there is no verifier. */ demoLogin?: boolean; /** Allowed web origins (CORS). Omit to allow any origin (dev). */ corsOrigin?: string[] };
 
 const E = (statusCode: number, message: string, code?: string) => Object.assign(new Error(message), { statusCode, appCode: code });
 const LANGS = ['hi', 'en', 'bn', 'ta', 'te', 'mr', 'gu'];
@@ -78,7 +80,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     return l;
   };
 
-  app.get('/', async () => ({ name: 'Urban Mine API', note: 'ALL DATA IS SAMPLE', try: '/api/safety/phone?lang=hi' }));
+  const webDir = deps.webDir && existsSync(join(resolve(deps.webDir), 'index.html')) ? resolve(deps.webDir) : null;
+  if (!webDir) app.get('/', async () => ({ name: 'Urban Mine API', note: 'ALL DATA IS SAMPLE', try: '/api/safety/phone?lang=hi' }));
   app.get('/api/health', async () => ({ ok: true }));
 
   // ---------- identity (mocked) ----------
@@ -514,6 +517,24 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     await setRate(db, b.material, b.city, Number(b.rate_per_kg), b.source?.trim() || 'SAMPLE: auditor edit');
     return { ok: true };
   });
+
+  // ---------- the web app, served from here when it has been built ----------
+  if (webDir) {
+    await app.register(fastifyStatic, {
+      root: webDir,
+      // the service worker and page shell must always be re-checked, so a new release reaches phones; hashed assets never change
+      setHeaders: (res, path) => {
+        const p = path.replace(/\\/g, '/');
+        res.header('cache-control', /\/assets\//.test(p) ? 'public, max-age=31536000, immutable' : 'no-cache');
+      },
+    });
+    // a page address such as /lots belongs to the app: send the shell. An unknown /api address stays a JSON 404.
+    app.setNotFoundHandler((req, reply) => {
+      const wantsPage = req.method === 'GET' && !req.url.startsWith('/api/') && !req.url.startsWith('/api?') && (req.headers.accept ?? '').includes('text/html');
+      if (wantsPage) return reply.sendFile('index.html');
+      return reply.code(404).send({ error: 'Not found' });
+    });
+  }
 
   return app;
 }

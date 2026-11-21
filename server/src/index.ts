@@ -65,7 +65,7 @@ const verifier = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? sup
 const demoLogin = process.env.DEMO_LOGIN ? process.env.DEMO_LOGIN === '1' : !verifier && process.env.NODE_ENV !== 'production';
 console.log(verifier ? `Sign-in: Supabase phone OTP${demoLogin ? ' + DEMO LOGIN ENABLED' : ''}` : demoLogin ? 'Sign-in: DEMO LOGIN ONLY (set SUPABASE_URL and SUPABASE_ANON_KEY for real sign-in)' : 'WARNING: no sign-in configured, every request will be refused');
 if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGIN) console.warn('WARNING: CORS_ORIGIN is not set, so ANY website can call this API from a browser. Set it to your web app address.');
-const app = await buildApp(db, { photos, assessor, visionDailyLimit: Number(process.env.VISION_DAILY_LIMIT) || undefined, verifier, demoLogin, corsOrigin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean) });
+const app = await buildApp(db, { webDir: process.env.WEB_DIR || resolve('web/dist'), photos, assessor, visionDailyLimit: Number(process.env.VISION_DAILY_LIMIT) || undefined, verifier, demoLogin, corsOrigin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean) });
 await app.listen({ port: PORT, host: '0.0.0.0' });
 console.log(`Urban Mine API on http://localhost:${PORT} (ALL DATA IS SAMPLE, ${DATABASE_URL ? 'Postgres via DATABASE_URL' : 'local PGlite at ' + DATA_DIR})`);
 
