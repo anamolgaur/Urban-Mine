@@ -3,17 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openDb } from '../src/db.ts';
-import { seed } from '../src/seed.ts';
-import { seedDemo } from '../src/demo.ts';
+import { freshDb } from './helpers.ts';
 import { buildApp } from '../src/app.ts';
 
 const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
 
 async function setup() {
-  const db = openDb(':memory:');
-  seed(db);
-  seedDemo(db);
+  const db = await freshDb();
   const app = await buildApp(db, { uploadsDir: mkdtempSync(join(tmpdir(), 'um-')), ocr: { read: async () => '' } });
   const as = (id: string) => ({ 'x-user-id': id });
   return { db, app, as };
@@ -113,8 +109,8 @@ test('safety editor bumps the version and a named reviewer clears the draft flag
 test('delete my data removes lots and anonymises the account', async () => {
   const { app, db, as } = await setup();
   assert.equal((await app.inject({ method: 'DELETE', url: '/api/me/data', headers: as('u-worker-2') })).statusCode, 200);
-  assert.equal((db.prepare("SELECT COUNT(*) c FROM lot WHERE user_id = 'u-worker-2'").get() as any).c, 0);
-  assert.equal((db.prepare("SELECT name FROM user WHERE id = 'u-worker-2'").get() as any).name, 'Deleted user');
+  assert.equal((await db.prepare("SELECT COUNT(*) c FROM lot WHERE user_id = 'u-worker-2'").get() as any).c, 0);
+  assert.equal((await db.prepare("SELECT name FROM app_user WHERE id = 'u-worker-2'").get() as any).name, 'Deleted user');
   await app.close();
 });
 

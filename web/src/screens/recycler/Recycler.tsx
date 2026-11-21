@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLang } from '../../lib/i18n.tsx'
+import { authEnabled } from '../../lib/supabase.ts'
 import { useApi } from '../../lib/useApi.ts'
 import { api, fetchBlobUrl } from '../../lib/api.ts'
 import { useSession } from '../../lib/session.tsx'
@@ -264,7 +265,7 @@ function Purchases() {
 export default function Recycler() {
   const { t } = useLang()
   const nav = useNavigate()
-  const { loginAs } = useSession()
+  const { loginAs, signOut } = useSession()
   const [tab, setTab] = useState<Tab>('market')
   const lots = useApi<MarketLot[]>('/api/market/lots')
   const bids = useBids()
@@ -296,7 +297,9 @@ export default function Recycler() {
           {tab === 'offers' && <MyOffers />}
           {tab === 'purchases' && <Purchases />}
         </div>
-        <div className="mt-8 max-w-xs"><Btn variant="secondary" icon="swap" onClick={() => { loginAs('u-worker-1'); nav('/') }}>{t('back_to_worker')}</Btn></div>
+        <div className="mt-8 max-w-xs">{authEnabled
+          ? <Btn variant="secondary" icon="lock" onClick={signOut}>{t('sign_out')}</Btn>
+          : <Btn variant="secondary" icon="swap" onClick={() => { loginAs('u-worker-1'); nav('/') }}>{t('back_to_worker')}</Btn>}</div>
       </main>
     </div>
   )

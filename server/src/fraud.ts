@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite';
+import type { Db } from './db.ts';
 import { randomUUID } from 'node:crypto';
 
 type Row = Record<string, any>;
@@ -35,20 +35,20 @@ export function gpsFlag(gps: Gps | null, workshop: Gps | null): FlagDraft | null
 }
 
 /** Expected weight from declared items (exact model weight, else average for the type). null if anything is unknown. */
-export function expectedWeightKg(db: DatabaseSync, items: { model_id?: string | null; type: string; qty?: number }[]): number | null {
+export async function expectedWeightKg(db: Db, items: { model_id?: string | null; type: string; qty?: number }[]): Promise<number | null> {
   let total = 0;
   for (const it of items) {
     let w: number | undefined;
-    if (it.model_id) w = (db.prepare('SELECT weight_kg w FROM device_model WHERE id = ?').get(it.model_id) as Row | undefined)?.w;
-    if (w === undefined) w = (db.prepare('SELECT AVG(weight_kg) w FROM device_model WHERE type = ?').get(it.type) as Row | undefined)?.w ?? undefined;
+    if (it.model_id) w = (await db.prepare('SELECT weight_kg w FROM device_model WHERE id = ?').get(it.model_id) as Row | undefined)?.w;
+    if (w === undefined) w = (await db.prepare('SELECT AVG(weight_kg) w FROM device_model WHERE type = ?').get(it.type) as Row | undefined)?.w ?? undefined;
     if (w === undefined || w === null) return null;
     total += w * (it.qty ?? 1);
   }
   return total;
 }
 
-export function evaluateLot(db: DatabaseSync, lotId: string): FlagDraft[] {
-  const lot = db.prepare('SELECT * FROM lot WHERE id = ?').get(lotId) as Row | undefined;
+export async function evaluateLot(db: Db, lotId: string): Promise<FlagDraft[]> {
+  const lot = await db.prepare('SELECT * FROM lot WHERE id = ?').get(lotId) as Row | undefined;
   if (!lot) throw new Error('Unknown lot');
   const flags: FlagDraft[] = [];
 
@@ -56,17 +56,17 @@ export function evaluateLot(db: DatabaseSync, lotId: string): FlagDraft[] {
   const hashes: string[] = JSON.parse(lot.photo_hashes);
   const dupIds = new Set<string>();
   for (const h of hashes) {
-    for (const o of db.prepare('SELECT id FROM lot WHERE id != ? AND photo_hashes LIKE ?').all(lotId, `%"${h}"%`) as Row[]) dupIds.add(o.id);
+    for (const o of await db.prepare('SELECT id FROM lot WHERE id != ? AND photo_hashes LIKE ?').all(lotId, `%"${h}"%`) as Row[]) dupIds.add(o.id);
   }
   if (dupIds.size) flags.push({ kind: 'duplicate_photo', detail: `A photo in this lot also appears in lot ${[...dupIds].map((i) => i.slice(0, 8)).join(', ')}` });
 
   // 2. weight far from expected
-  const w = weightFlag(expectedWeightKg(db, JSON.parse(lot.items)), lot.weight_kg);
+  const w = weightFlag(await expectedWeightKg(db, JSON.parse(lot.items)), lot.weight_kg);
   if (w) flags.push(w);
 
   // 3. GPS far from registered workshop
-  const ws = db.prepare('SELECT w.lat, w.lng FROM user u JOIN workshop w ON w.id = u.workshop_id WHERE u.id = ?').get(lot.user_id) as Gps | undefined;
-  const g = gpsFlag(lot.gps ? JSON.parse(lot.gps) : null, ws ?? null);
+  const ws = await db.prepare('SELECT w.lat, w.lng FROM app_user u JOIN workshop w ON w.id = u.workshop_id WHERE u.id = ?').get(lot.user_id) as Gps | undefined;
+  const g = gpsFlag(lot.gps ? JSON.parse(lot.gps) : null, ws && ws.lat != null && ws.lng != null ? ws : null);
   if (g) flags.push(g);
 
   // 4. low safety-step completion
@@ -75,7 +75,7 @@ export function evaluateLot(db: DatabaseSync, lotId: string): FlagDraft[] {
 
   // 5. rapid repeat lots by the same worker
   const end = Date.parse(lot.created_at);
-  const recent = (db.prepare('SELECT created_at FROM lot WHERE user_id = ?').all(lot.user_id) as Row[])
+  const recent = (await db.prepare('SELECT created_at FROM lot WHERE user_id = ?').all(lot.user_id) as Row[])
     .filter((r) => { const t = Date.parse(r.created_at); return t <= end && end - t <= T.RAPID_MINUTES * 60000; });
   if (recent.length >= T.RAPID_COUNT) flags.push({ kind: 'rapid_repeat', detail: `${recent.length} lots from one worker within ${T.RAPID_MINUTES} minutes` });
 
@@ -83,11 +83,11 @@ export function evaluateLot(db: DatabaseSync, lotId: string): FlagDraft[] {
 }
 
 /** Evaluate and store any flags not already recorded for this lot. */
-export function recordFlags(db: DatabaseSync, lotId: string): FlagDraft[] {
-  const found = evaluateLot(db, lotId);
+export async function recordFlags(db: Db, lotId: string): Promise<FlagDraft[]> {
+  const found = await evaluateLot(db, lotId);
   for (const f of found) {
-    const exists = db.prepare('SELECT 1 FROM flag WHERE lot_id = ? AND kind = ?').get(lotId, f.kind);
-    if (!exists) db.prepare('INSERT INTO flag VALUES (?,?,?,?,?)').run(randomUUID(), lotId, f.kind, f.detail, 'open');
+    const exists = await db.prepare('SELECT 1 FROM flag WHERE lot_id = ? AND kind = ?').get(lotId, f.kind);
+    if (!exists) await db.prepare('INSERT INTO flag VALUES (?,?,?,?,?)').run(randomUUID(), lotId, f.kind, f.detail, 'open');
   }
   return found;
 }

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from 'react'
-import type { Estimate, Lot, ScanResult } from './types.ts'
+import type { Estimate, Grade, Lot, ScanResult } from './types.ts'
 
 /** Everything the worker is in the middle of: from the first photo to the created lot. */
 export type Flow = {
@@ -15,8 +15,10 @@ export type Flow = {
   done: Record<string, string | true> // safety step id -> photo hash (or true when no photo was needed)
   extraHashes: string[]
   lot: Lot | null
+  /** Condition grade: the worker's own, or an AI suggestion from the photos (`aiGrade`) they may have changed. */
+  condition: { grade: Grade; issues: string[]; confidence: number; source: 'ai' | 'worker'; aiGrade: Grade | null } | null
 }
-export const emptyFlow: Flow = { hint: null, images: [null, null, null, null], labelText: '', scan: null, type: null, modelId: null, qty: 1, works: null, estimate: null, done: {}, extraHashes: [], lot: null }
+export const emptyFlow: Flow = { hint: null, images: [null, null, null, null], labelText: '', scan: null, type: null, modelId: null, qty: 1, works: null, estimate: null, done: {}, extraHashes: [], lot: null, condition: null }
 
 type Ctx = { flow: Flow; patch: (p: Partial<Flow>) => void; setImage: (i: number, url: string) => void; reset: () => void }
 const FlowCtx = createContext<Ctx>({ flow: emptyFlow, patch: () => {}, setImage: () => {}, reset: () => {} })

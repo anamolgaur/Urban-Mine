@@ -9,8 +9,8 @@
   --color-bad: #B3261E;
   --color-mute: #565A5F;
   --color-sunk: #E9E7E0;
-  --font-sans: 'IBM Plex Sans', 'Noto Sans Devanagari', system-ui, sans-serif;
-  --font-cond: 'IBM Plex Sans Condensed', 'Noto Sans Devanagari', system-ui, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Gujarati', system-ui, sans-serif;
+  --font-cond: 'IBM Plex Sans Condensed', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Gujarati', system-ui, sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, monospace;
 }
 

@@ -1,0 +1,28 @@
+# Render Blueprint: New > Blueprint > pick this repo. Render creates the API service from this file.
+# Values marked sync:false are secrets or per-environment: Render asks you for them in its dashboard. Never put them in this file.
+services:
+  - type: web
+    name: urban-mine-api
+    runtime: node
+    region: singapore          # closest Render region to India
+    plan: free                 # free instances sleep when idle: use a paid plan for a live service
+    buildCommand: npm install --omit=dev
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL           # Supabase "Transaction pooler" connection string
+        sync: false
+      - key: SUPABASE_URL           # project URL (public)
+        sync: false
+      - key: SUPABASE_ANON_KEY      # publishable key (public)
+        sync: false
+      - key: CORS_ORIGIN            # your Vercel address, e.g. https://urban-mine.vercel.app (no trailing slash)
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY   # optional: private photo storage (server only, secret)
+        sync: false
+      - key: ANTHROPIC_API_KEY           # optional: AI condition grade (server only, secret)
+        sync: false

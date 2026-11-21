@@ -1,6 +1,5 @@
 import { deflateSync } from 'node:zlib';
-import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import type { PhotoStore } from './photostore.ts';
 
 const table = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
 const crc = (buf: Buffer) => { let c = 0xffffffff; for (const b of buf) c = table[(c ^ b) & 0xff] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
@@ -33,8 +32,7 @@ export function samplePhotoPng(hash: string, w = 240, h = 180): Buffer {
   return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', deflateSync(raw)), chunk('IEND', Buffer.alloc(0))]);
 }
 
-/** Write sample pictures into the uploads folder under their hashes (PNG bytes; browsers display them fine). */
-export function writeSamplePhotos(dir: string, hashes: Iterable<string>) {
-  mkdirSync(dir, { recursive: true });
-  for (const h of hashes) writeFileSync(join(dir, h + '.jpg'), samplePhotoPng(h));
+/** Store sample pictures under their hashes (PNG bytes; browsers display them fine). */
+export async function writeSamplePhotos(store: PhotoStore, hashes: Iterable<string>) {
+  for (const h of hashes) await store.put(h, samplePhotoPng(h), 'image/png');
 }

@@ -37,11 +37,12 @@ function GuideCard({ g }: { g: Guide }) {
 }
 
 export function Fix() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const { data, error, loading } = useApi<Guide[]>('/api/repair/guides')
   return (
     <>
       <div className="mt-3"><Banner tone="amber" icon="info">{t('guides_draft')}</Banner></div>
+      {lang !== 'hi' && lang !== 'en' && <div className="mt-2"><Banner icon="info">{t('content_fallback')}</Banner></div>}
       {error && <ErrorNote message={error} />}
       {loading && <Loading />}
       {data && <ul className="mt-3 border-t border-hair">{data.map((g) => <GuideCard key={g.id} g={g} />)}</ul>}

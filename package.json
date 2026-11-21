@@ -8,24 +8,33 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "dev:server": "node --watch server/src/index.ts",
+    "dev:server": "node --env-file-if-exists=server/.env --watch server/src/index.ts",
     "dev:web": "npm run dev --prefix web",
     "build:web": "npm run build --prefix web",
-    "seed": "node server/src/seed.ts",
+    "seed": "node --env-file-if-exists=server/.env server/src/reset.ts",
     "check:strings": "node scripts/check-strings.mjs",
-    "test": "node --test \"server/test/*.test.ts\""
+    "pretest": "node server/src/template.ts",
+    "test": "node --test --test-isolation=none --test-force-exit \"server/test/*.test.ts\"",
+    "start": "node --env-file-if-exists=server/.env server/src/index.ts",
+    "db:check": "node --env-file-if-exists=server/.env server/src/check.ts",
+    "auditor": "node --env-file-if-exists=server/.env server/src/auditor.ts",
+    "storage:setup": "node --env-file-if-exists=server/.env server/src/storage.ts setup",
+    "storage:check": "node --env-file-if-exists=server/.env server/src/storage.ts check"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
     "@fastify/cors": "^11.4.3",
     "@fastify/multipart": "^10.1.9",
-    "@fastify/static": "^10.1.12",
     "fastify": "^5.12.8",
     "pdfkit": "^0.21.0",
+    "pg": "^8.23.1",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.17",
     "@types/node": "^26.6.6",
     "@types/pdfkit": "^0.17.7",
+    "@types/pg": "^8.23.1",
     "typescript": "^7.0.2"
   }
 }

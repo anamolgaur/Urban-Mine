@@ -28,6 +28,6 @@ export default defineConfig({
   ],
   server: {
     host: true,
-    proxy: { '/api': 'http://localhost:3000', '/uploads': 'http://localhost:3000' },
+    proxy: { '/api': 'http://localhost:3000' },
   },
 })

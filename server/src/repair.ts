@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite';
+import type { Db } from './db.ts';
 import { randomUUID } from 'node:crypto';
 import { estimate } from './price.ts';
 
@@ -16,55 +16,53 @@ export type RepairComparison = {
 };
 
 /** Suggest repair only if the device still works AND repairing beats recycling by a clear margin (1.5x). */
-export function repairComparison(db: DatabaseSync, city: string, o: { type: string; modelId?: string | null; works: boolean }): RepairComparison | null {
+export async function repairComparison(db: Db, city: string, o: { type: string; modelId?: string | null; works: boolean }): Promise<RepairComparison | null> {
   const r = REPAIR_SAMPLE[o.type];
-  const est = estimate(db, city, { type: o.type, modelId: o.modelId });
+  const est = await estimate(db, city, { type: o.type, modelId: o.modelId });
   if (!r || !est) return null;
   const net = r.resale - r.cost;
   const recommend = o.works && r.resale > 0 && net > est.total * 1.5 ? 'repair' : 'recycle';
   return { recommend, repair_cost: r.cost, resale_if_repaired: r.resale, recycle_value: est.total, net_if_repaired: net, sample: true };
 }
 
-export function listGuides(db: DatabaseSync) {
-  return (db.prepare('SELECT * FROM repair_guide').all() as Row[]).map((g) => ({
+export async function listGuides(db: Db) {
+  return (await db.prepare('SELECT * FROM repair_guide').all() as Row[]).map((g) => ({
     id: g.id, fault: JSON.parse(g.fault), device_type: g.device_type, difficulty: g.difficulty, tools: JSON.parse(g.tools), steps: JSON.parse(g.steps_json),
   }));
 }
 
-export function listListings(db: DatabaseSync) {
-  return (db.prepare('SELECT l.*, u.name FROM repairer_listing l JOIN user u ON u.id = l.user_id ORDER BY l.verified_count DESC').all() as Row[])
+export async function listListings(db: Db) {
+  return (await db.prepare('SELECT l.*, u.name FROM repairer_listing l JOIN app_user u ON u.id = l.user_id ORDER BY l.verified_count DESC').all() as Row[])
     .map((l) => ({ ...l, skills: JSON.parse(l.skills), sample: true }));
 }
 
-export function upsertListing(db: DatabaseSync, userId: string, p: { skills: string[]; area: string; start_price: number; hours: string }) {
+export async function upsertListing(db: Db, userId: string, p: { skills: string[]; area: string; start_price: number; hours: string }) {
   if (!p.skills?.length || !p.area?.trim() || !(p.start_price > 0)) throw new Error('Skills, area and a positive starting price are required');
-  const existing = db.prepare('SELECT id FROM repairer_listing WHERE user_id = ?').get(userId) as Row | undefined;
+  const existing = await db.prepare('SELECT id FROM repairer_listing WHERE user_id = ?').get(userId) as Row | undefined;
   if (existing) {
-    db.prepare('UPDATE repairer_listing SET skills=?, area=?, start_price=?, hours=? WHERE id=?').run(JSON.stringify(p.skills), p.area, p.start_price, p.hours ?? '', existing.id);
+    await db.prepare('UPDATE repairer_listing SET skills=?, area=?, start_price=?, hours=? WHERE id=?').run(JSON.stringify(p.skills), p.area, p.start_price, p.hours ?? '', existing.id);
     return existing.id as string;
   }
   const id = randomUUID();
-  db.prepare('INSERT INTO repairer_listing VALUES (?,?,?,?,?,?,?)').run(id, userId, JSON.stringify(p.skills), p.area, p.start_price, p.hours ?? '', 0);
+  await db.prepare('INSERT INTO repairer_listing VALUES (?,?,?,?,?,?,?)').run(id, userId, JSON.stringify(p.skills), p.area, p.start_price, p.hours ?? '', 0);
   return id;
 }
 
-export function createJob(db: DatabaseSync, listingId: string, beforePhoto: string, note = '', now = new Date()) {
+export async function createJob(db: Db, listingId: string, beforePhoto: string, note = '', now = new Date()) {
   if (!beforePhoto) throw new Error('A before photo is required');
   const id = randomUUID();
-  db.prepare('INSERT INTO repair_job (id, listing_id, before_photo, after_photo, status, note, created_at) VALUES (?,?,?,?,?,?,?)').run(id, listingId, beforePhoto, null, 'in_progress', note.trim().slice(0, 120), now.toISOString());
+  await db.prepare('INSERT INTO repair_job (id, listing_id, before_photo, after_photo, status, note, created_at) VALUES (?,?,?,?,?,?,?)').run(id, listingId, beforePhoto, null, 'in_progress', note.trim().slice(0, 120), now.toISOString());
   return id;
 }
 
 /** The repair count only goes up when a job has BOTH before and after photos. */
-export function completeJob(db: DatabaseSync, jobId: string, afterPhoto: string, now = new Date()) {
-  const job = db.prepare('SELECT * FROM repair_job WHERE id = ?').get(jobId) as Row | undefined;
+export async function completeJob(db: Db, jobId: string, afterPhoto: string, now = new Date()) {
+  const job = await db.prepare('SELECT * FROM repair_job WHERE id = ?').get(jobId) as Row | undefined;
   if (!job) throw new Error('Job not found');
   if (job.status === 'completed') throw new Error('Job already completed');
   if (!job.before_photo || !afterPhoto) throw new Error('Before and after photos are required');
-  db.exec('BEGIN');
-  try {
-    db.prepare("UPDATE repair_job SET after_photo = ?, status = 'completed', completed_at = ? WHERE id = ?").run(afterPhoto, now.toISOString(), jobId);
-    db.prepare('UPDATE repairer_listing SET verified_count = verified_count + 1 WHERE id = ?').run(job.listing_id);
-    db.exec('COMMIT');
-  } catch (e) { db.exec('ROLLBACK'); throw e; }
+  await db.tx(async (t) => {
+    await t.prepare("UPDATE repair_job SET after_photo = ?, status = 'completed', completed_at = ? WHERE id = ?").run(afterPhoto, now.toISOString(), jobId);
+    await t.prepare('UPDATE repairer_listing SET verified_count = verified_count + 1 WHERE id = ?').run(job.listing_id);
+  });
 }

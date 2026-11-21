@@ -7,6 +7,7 @@ import LotReview, { LotDetail } from './LotReview.tsx'
 import { Workers, Recyclers } from './People.tsx'
 import RateTable from './RateTable.tsx'
 import SafetyEditor from './SafetyEditor.tsx'
+import { authEnabled } from '../../lib/supabase.ts'
 
 const NAV = [
   ['/auditor', 'aud_lots', true],
@@ -18,7 +19,7 @@ const NAV = [
 
 export default function Auditor() {
   const { t } = useLang()
-  const { loginAs } = useSession()
+  const { loginAs, signOut } = useSession()
   const nav = useNavigate()
   return (
     <div className="min-h-dvh bg-paper">
@@ -27,7 +28,9 @@ export default function Auditor() {
           <span className="inline-flex h-8 w-8 items-center justify-center bg-ink"><Icon name="lots" size={18} className="text-amber" /></span>
           <h1 className="flex-1 font-cond text-xl font-bold uppercase tracking-wide">{t('auditor_title')}</h1>
           <LangToggle />
-          <Btn full={false} variant="secondary" icon="swap" className="hidden sm:inline-flex" onClick={() => { loginAs('u-worker-1'); nav('/') }}>{t('back_to_worker')}</Btn>
+          {authEnabled
+            ? <Btn full={false} variant="secondary" icon="lock" onClick={signOut}>{t('sign_out')}</Btn>
+            : <Btn full={false} variant="secondary" icon="swap" className="hidden sm:inline-flex" onClick={() => { loginAs('u-worker-1'); nav('/') }}>{t('back_to_worker')}</Btn>}
         </div>
         <nav aria-label={t('auditor_title')} className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4">
           {NAV.map(([to, key, end]) => (

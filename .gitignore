@@ -5,3 +5,8 @@ uploads/
 dist/
 vite.log
 .claude/
+
+.data/
+.env
+.env.*
+!.env.example

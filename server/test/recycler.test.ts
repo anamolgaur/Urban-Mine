@@ -3,22 +3,22 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openDb } from '../src/db.ts';
-import { seed } from '../src/seed.ts';
+import { freshDb } from './helpers.ts';
 import { seedDemo } from '../src/demo.ts';
+import { LocalPhotoStore } from '../src/photostore.ts';
 import { buildApp } from '../src/app.ts';
 import { samplePhotoPng } from '../src/samplephoto.ts';
 
 async function setup() {
-  const db = openDb(':memory:');
-  seed(db);
+  const db = await freshDb({ demo: false });
   const dir = mkdtempSync(join(tmpdir(), 'um-'));
-  seedDemo(db, new Date(), dir);
-  const app = await buildApp(db, { uploadsDir: dir, ocr: { read: async () => '' } });
+  const photos = new LocalPhotoStore(dir, 'test-secret');
+  await seedDemo(db, new Date(), photos);
+  const app = await buildApp(db, { photos, uploadsDir: dir, ocr: { read: async () => '' } });
   return { app, dir, as: (id: string) => ({ 'x-user-id': id }) };
 }
 
-test('sample photos are valid PNGs, deterministic, and differ by hash', () => {
+test('sample photos are valid PNGs, deterministic, and differ by hash', async () => {
   const a = samplePhotoPng('a1'.padEnd(64, '0'));
   assert.equal(a.subarray(1, 4).toString(), 'PNG');
   assert.deepEqual(a, samplePhotoPng('a1'.padEnd(64, '0')));
@@ -27,7 +27,7 @@ test('sample photos are valid PNGs, deterministic, and differ by hash', () => {
 
 test('demo seeding writes sample photo files, so a duplicate photo is the same file', async () => {
   const { dir } = await setup();
-  assert.ok(existsSync(join(dir, 'a1'.padEnd(64, '0') + '.jpg')));
+  assert.ok(existsSync(join(dir, 'a1'.padEnd(64, '0') + '.img')));
 });
 
 test('market lots carry seller location and a SAMPLE expected value range', async () => {

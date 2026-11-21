@@ -3,17 +3,17 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { openDb } from '../src/db.ts';
-import { seed } from '../src/seed.ts';
+import { freshDb } from './helpers.ts';
 import { seedDemo } from '../src/demo.ts';
+import { LocalPhotoStore } from '../src/photostore.ts';
 import { buildApp } from '../src/app.ts';
 
 async function setup() {
-  const db = openDb(':memory:');
-  seed(db);
+  const db = await freshDb({ demo: false });
   const dir = mkdtempSync(join(tmpdir(), 'um-'));
-  seedDemo(db, new Date(), dir);
-  const app = await buildApp(db, { uploadsDir: dir, ocr: { read: async () => '' } });
+  const photos = new LocalPhotoStore(dir, 'test-secret');
+  await seedDemo(db, new Date(), photos);
+  const app = await buildApp(db, { photos, uploadsDir: dir, ocr: { read: async () => '' } });
   return { app, h: { 'x-user-id': 'u-repairer-1' } };
 }
 

@@ -1,13 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { openDb } from '../src/db.ts';
-import { seed } from '../src/seed.ts';
+import { ownDb } from './helpers.ts';
 import { priceComposition, getRates, estimate, typeComposition, staleRates, setRate } from '../src/price.ts';
 
-const db = openDb(':memory:');
-seed(db);
+const db = await ownDb({ demo: false });
 
-test('grams x rate per kg, summed', () => {
+test('grams x rate per kg, summed', async () => {
   // 1000 g copper at 640/kg = 640; 500 g plastic at 12/kg = 6
   const e = priceComposition({ copper: 1000, plastic: 500 }, { copper: { rate: 640 }, plastic: { rate: 12 } }, 'model');
   assert.equal(e.total, 646);
@@ -16,7 +14,7 @@ test('grams x rate per kg, summed', () => {
   assert.equal(e.sample, true);
 });
 
-test('range: +-12% for a known model, +-25% for type only', () => {
+test('range: +-12% for a known model, +-25% for type only', async () => {
   const r = { copper: { rate: 100 } };
   const m = priceComposition({ copper: 1000 }, r, 'model');
   assert.equal(m.low, 88);
@@ -26,47 +24,47 @@ test('range: +-12% for a known model, +-25% for type only', () => {
   assert.equal(t.high, 125);
 });
 
-test('a material with no rate throws instead of being valued at zero', () => {
+test('a material with no rate throws instead of being valued at zero', async () => {
   assert.throws(() => priceComposition({ gold: 1 }, {}, 'model'), /No rate/);
 });
 
-test('rates show change versus yesterday', () => {
-  const rates = getRates(db, 'Delhi');
+test('rates show change versus yesterday', async () => {
+  const rates = await getRates(db, 'Delhi');
   assert.equal(rates.copper.rate, 640);
   assert.equal(rates.copper.change, -6);
   assert.equal(rates.aluminium.change, 2);
   assert.equal(rates.steel.change, 0);
 });
 
-test('type-only estimate averages models of that type', () => {
-  const comp = typeComposition(db, 'phone')!;
+test('type-only estimate averages models of that type', async () => {
+  const comp = (await typeComposition(db, 'phone'))!;
   assert.equal(comp.copper, Math.round((12 + 13 + 11) / 3));
-  assert.equal(typeComposition(db, 'spaceship'), null);
+  assert.equal(await typeComposition(db, 'spaceship'), null);
 });
 
-test('estimate prefers the model, falls back to type, returns null for unknown', () => {
-  assert.equal(estimate(db, 'Delhi', { modelId: 'ph-arka-a1', type: 'phone' })!.basis, 'model');
-  assert.equal(estimate(db, 'Delhi', { modelId: 'nope', type: 'phone' })!.basis, 'type');
-  assert.equal(estimate(db, 'Delhi', { type: 'spaceship' }), null);
+test('estimate prefers the model, falls back to type, returns null for unknown', async () => {
+  assert.equal((await estimate(db, 'Delhi', { modelId: 'ph-arka-a1', type: 'phone' }))!.basis, 'model');
+  assert.equal((await estimate(db, 'Delhi', { modelId: 'nope', type: 'phone' }))!.basis, 'type');
+  assert.equal(await estimate(db, 'Delhi', { type: 'spaceship' }), null);
 });
 
-test('the same device is cheaper in Kolkata (sample city factor)', () => {
-  const d = estimate(db, 'Delhi', { modelId: 'lap-nova-14' })!.total;
-  const k = estimate(db, 'Kolkata', { modelId: 'lap-nova-14' })!.total;
+test('the same device is cheaper in Kolkata (sample city factor)', async () => {
+  const d = (await estimate(db, 'Delhi', { modelId: 'lap-nova-14' }))!.total;
+  const k = (await estimate(db, 'Kolkata', { modelId: 'lap-nova-14' }))!.total;
   assert.ok(k < d);
 });
 
-test('stale rows are found by age', () => {
-  const stale = staleRates(db, new Date('2026-11-20T12:00:00Z'), 7);
+test('stale rows are found by age', async () => {
+  const stale = await staleRates(db, new Date('2026-11-20T12:00:00Z'), 7);
   assert.equal(stale.length, 1);
   assert.equal(stale[0].material, 'glass');
   assert.equal(stale[0].city, 'Kolkata');
 });
 
-test('auditor edit updates the rate and today history, and the change shows', () => {
-  setRate(db, 'copper', 'Delhi', 700, 'SAMPLE: auditor edit', new Date('2026-11-21T08:00:00Z'));
-  const r = getRates(db, 'Delhi').copper;
+test('auditor edit updates the rate and today history, and the change shows', async () => {
+  await setRate(db, 'copper', 'Delhi', 700, 'SAMPLE: auditor edit', new Date('2026-11-21T08:00:00Z'));
+  const r = (await getRates(db, 'Delhi')).copper;
   assert.equal(r.rate, 700);
   assert.equal(r.change, 60); // vs 640 on 2026-11-20
-  assert.throws(() => setRate(db, 'copper', 'Delhi', 0, 'x'), /positive/);
+  await assert.rejects(() => setRate(db, 'copper', 'Delhi', 0, 'x'), /positive/);
 });

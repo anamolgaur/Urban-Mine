@@ -8,21 +8,21 @@ import { packFor } from '../../lib/devices.ts'
 import { fileToDataUrl } from '../../lib/image.ts'
 import { speak, stopSpeaking, useVoiceAvailable } from '../../lib/speech.ts'
 import type { SafetyPack } from '../../lib/types.ts'
-import { Btn, EmergencyLine, Tag, ErrorNote, H2, Header } from '../../components/ui.tsx'
+import { Btn, Banner, EmergencyLine, Tag, ErrorNote, H2, Header } from '../../components/ui.tsx'
 import { Rail, Meter, DraftRibbon, Skeleton } from '../../components/kit.tsx'
 import Illustration from '../../components/Illustration.tsx'
 import Icon from '../../components/Icon.tsx'
 import StepDrawing from '../../components/StepDrawing.tsx'
 
 function useDraftPack() {
-  const { lang } = useLang()
+  const { contentLang: lang } = useLang()
   const { flow } = useFlow()
   const pack = flow.type ? packFor(flow.type) : null
   return useApi<SafetyPack>(pack ? `/api/safety/${pack}?lang=${lang}` : null)
 }
 
 function ListenButton({ text }: { text: string }) {
-  const { t, lang } = useLang()
+  const { t, contentLang: lang } = useLang()
   const [on, setOn] = useState(false)
   const hasVoice = useVoiceAvailable(lang)
   useEffect(() => () => stopSpeaking(), [])
@@ -42,7 +42,7 @@ function BottomBar({ children }: { children: React.ReactNode }) {
 }
 
 export function Briefing() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const nav = useNavigate()
   const { flow } = useFlow()
   const { data: pack, error, loading } = useDraftPack()
@@ -61,6 +61,7 @@ export function Briefing() {
         {loading && <Skeleton rows={4} />}
         {pack && (
           <>
+            {lang !== 'hi' && lang !== 'en' && <div className="mt-4"><Banner icon="info">{t('content_fallback')}</Banner></div>}
             <div className="mt-4"><EmergencyLine text={pack.emergency} /></div>
             <div className="mt-4 flex items-center gap-3 border border-hair bg-white p-3">
               <Illustration art="shield" className="h-16 w-24 shrink-0" />

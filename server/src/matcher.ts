@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite';
+import type { Db } from './db.ts';
 
 export type ModelRef = { id: string; type: string; brand: string; model: string; label_patterns: string[] };
 export type Candidate = { model: ModelRef; confidence: number; matched: string[] };
@@ -10,8 +10,8 @@ export const MIN_CONFIDENCE = 0.6;
 export const MAX_CONFIDENCE = 0.9; // never present a guess as certain
 const AMBIGUITY_GAP = 0.1;
 
-export function loadModels(db: DatabaseSync): ModelRef[] {
-  return (db.prepare('SELECT id, type, brand, model, label_patterns FROM device_model').all() as Record<string, any>[])
+export async function loadModels(db: Db): Promise<ModelRef[]> {
+  return (await db.prepare('SELECT id, type, brand, model, label_patterns FROM device_model').all() as Record<string, any>[])
     .map((r) => ({ id: r.id, type: r.type, brand: r.brand, model: r.model, label_patterns: JSON.parse(r.label_patterns) }));
 }
 

@@ -13,7 +13,7 @@ import Photo from '../../components/Photo.tsx'
 import Icon from '../../components/Icon.tsx'
 
 export default function Sell() {
-  const { t, lang } = useLang()
+  const { t, contentLang: lang } = useLang()
   const nav = useNavigate()
   const { flow, patch } = useFlow()
   const pack = flow.type ? packFor(flow.type) : null
@@ -47,7 +47,7 @@ export default function Sell() {
     try {
       const l = await api<Lot>('/api/lots', {
         body: {
-          items: [{ model_id: flow.modelId, type: flow.type, qty: flow.qty }],
+          items: [{ model_id: flow.modelId, type: flow.type, qty: flow.qty, ...(flow.condition ? { grade: flow.condition.grade, grade_source: flow.condition.source } : {}) }],
           weight_kg: Number(weight), steps_done: stepsDone, steps_total: stepsTotal, photo_hashes: photoHashes, gps,
         },
       })
@@ -77,6 +77,7 @@ export default function Sell() {
             <H2>{t('lot_summary')}</H2>
             <dl className="divide-y divide-hair border-y border-hair">
               <KV k={t('items')} v={`${flow.qty} × ${t('type.' + flow.type)}`} />
+              {flow.condition && <KV k={t('pc_title')} v={t('pc_grade', { g: flow.condition.grade })} />}
               <KV k={t('est_value')} v={<>{inr(est.low * flow.qty)} – {inr(est.high * flow.qty)} <SampleTag /></>} mono />
               <div className="py-2">
                 <div className="flex justify-between text-base"><dt className="text-mute">{t('safety_done')}</dt><dd className="num font-semibold">{stepsTotal ? `${stepsDone}/${stepsTotal}` : t('none_needed')}</dd></div>

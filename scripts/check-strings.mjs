@@ -24,6 +24,11 @@ for (const [prefix, vals] of Object.entries({
   'diff.': ['easy', 'medium', 'hard'],
   'role.': ['worker', 'recycler', 'repairer', 'auditor'],
   'bid.': ['open', 'accepted', 'rejected', 'expired'],
+  'approval.': ['pending', 'approved', 'rejected'],
+  'ob_role_': ['worker_d', 'recycler_d', 'repairer_d'],
+  'issue.': ['cracked_screen', 'swollen_battery', 'corrosion_or_water', 'missing_parts', 'heavy_wear', 'burn_marks'],
+  'pc_desc_': ['A', 'B', 'C', 'D'],
+  'fair_': ['within', 'below', 'above'],
   'flag_why.': ['duplicate_photo', 'weight_outlier', 'gps_far', 'low_safety', 'rapid_repeat', 'recheck_requested'],
 })) for (const v of vals) used.add(prefix + v)
 
@@ -33,7 +38,24 @@ for (const k of ['top','under','back','label']) used.add('shot_'+k+'_help')
 for (const k of ['normal','large','xlarge']) used.add('text_'+k)
 const missing = [...used].filter((k) => !/[._]$/.test(k) && !defined.has(k))
 const empty = [...strings.matchAll(/'?([A-Za-z_.]+)'?:\s*\[\s*'\s*'|,\s*'\s*'\s*\]/g)]
+
+// Extra languages live in strings.<code>.ts as Record<string, string>. Each must cover every defined key, keep the same {placeholders}, and add no unknown keys.
+const placeholders = (t) => [...t.matchAll(/\{[a-z]+\}/g)].map((m) => m[0]).sort().join(',')
+const enText = {}
+for (const m of strings.matchAll(/^\s*(?:'([A-Za-z_.]+)'|([A-Za-z_]+)):\s*\[\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/gm)) enText[m[1] ?? m[2]] = m[3] ?? m[4]
+let langProblems = 0
+for (const code of ['bn', 'ta', 'te', 'mr', 'gu']) {
+  const text = readFileSync(join(root, `lib/strings.${code}.ts`), 'utf8')
+  const have = new Map()
+  for (const m of text.matchAll(/^\s*(?:'([A-Za-z_.]+)'|([A-Za-z_]+)):\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")/gm)) have.set(m[1] ?? m[2], m[3] ?? m[4])
+  const lack = [...defined].filter((k) => !have.has(k))
+  const extra = [...have.keys()].filter((k) => !defined.has(k))
+  const bad = [...have].filter(([k, v]) => !v.trim() || (enText[k] !== undefined && placeholders(v) !== placeholders(enText[k]))).map(([k]) => k)
+  console.log(`${code}: ${have.size} strings` + (lack.length ? `, MISSING ${lack.join(', ')}` : '') + (extra.length ? `, UNKNOWN ${extra.join(', ')}` : '') + (bad.length ? `, BAD PLACEHOLDERS/EMPTY ${bad.join(', ')}` : ''))
+  langProblems += lack.length + extra.length + bad.length
+}
+
 console.log(`keys defined: ${defined.size}, keys used: ${used.size}`)
 console.log(missing.length ? `MISSING: ${missing.join(', ')}` : 'No missing keys.')
 if (empty.length) console.log('EMPTY strings found')
-process.exit(missing.length ? 1 : 0)
+process.exit(missing.length || langProblems ? 1 : 0)

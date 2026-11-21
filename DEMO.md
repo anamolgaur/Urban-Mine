@@ -39,5 +39,5 @@ Prepare before you start: the browser has no camera, so on a laptop the "photo" 
 
 ## If something goes wrong
 - *Server not reachable banner:* start `npm run dev:server`, press Retry.
-- *Fresh data:* stop the server, delete `urban-mine.db`, start again.
+- *Fresh data:* run `npm run seed` (local database), then start the server again.
 - *No Hindi voice:* the app shows a note; use English audio or skip Listen.

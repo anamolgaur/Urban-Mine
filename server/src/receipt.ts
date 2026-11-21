@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite';
+import type { Db } from './db.ts';
 import PDFDocument from 'pdfkit';
 
 type Row = Record<string, any>;
@@ -11,16 +11,16 @@ export type ReceiptData = {
 };
 
 /** Build receipt data for a SOLD lot from its accepted bid. */
-export function receiptData(db: DatabaseSync, lotId: string): ReceiptData {
-  const lot = db.prepare('SELECT * FROM lot WHERE id = ?').get(lotId) as Row | undefined;
+export async function receiptData(db: Db, lotId: string): Promise<ReceiptData> {
+  const lot = await db.prepare('SELECT * FROM lot WHERE id = ?').get(lotId) as Row | undefined;
   if (!lot) throw new Error('Lot not found');
   if (lot.status !== 'sold') throw new Error('Receipt is only available for sold lots');
-  const bid = db.prepare("SELECT b.*, u.name AS buyer FROM bid b JOIN user u ON u.id = b.recycler_id WHERE b.lot_id = ? AND b.status = 'accepted'").get(lotId) as Row;
-  const seller = db.prepare('SELECT u.name, u.phone, w.address FROM user u LEFT JOIN workshop w ON w.id = u.workshop_id WHERE u.id = ?').get(lot.user_id) as Row;
-  const items = (JSON.parse(lot.items) as Row[]).map((it) => {
-    const m = it.model_id ? (db.prepare('SELECT brand, model FROM device_model WHERE id = ?').get(it.model_id) as Row | undefined) : undefined;
+  const bid = await db.prepare("SELECT b.*, u.name AS buyer FROM bid b JOIN app_user u ON u.id = b.recycler_id WHERE b.lot_id = ? AND b.status = 'accepted'").get(lotId) as Row;
+  const seller = await db.prepare('SELECT u.name, u.phone, w.address FROM app_user u LEFT JOIN workshop w ON w.id = u.workshop_id WHERE u.id = ?').get(lot.user_id) as Row;
+  const items = await Promise.all((JSON.parse(lot.items) as Row[]).map(async (it) => {
+    const m = it.model_id ? (await db.prepare('SELECT brand, model FROM device_model WHERE id = ?').get(it.model_id) as Row | undefined) : undefined;
     return { name: m ? `${m.brand} ${m.model}` : String(it.type).replace('_', ' '), qty: it.qty ?? 1 };
-  });
+  }));
   const phone = String(seller.phone ?? '');
   return {
     receipt_no: 'UM-' + lot.hash.slice(0, 8).toUpperCase(), lot_id: lot.id, hash: lot.hash, date: lot.created_at.slice(0, 10),

@@ -65,7 +65,7 @@ export default function Scan() {
     setBusy(true); setErr(null)
     try {
       const res = await api<ScanResult>('/api/scan', { body: { images: flow.images.filter(Boolean), hint: flow.hint ?? undefined, ocrText: flow.labelText || undefined } })
-      patch({ scan: res, type: res.type === 'unknown' ? null : res.type, modelId: null, estimate: null, done: {}, extraHashes: [], lot: null, works: null, qty: 1 })
+      patch({ scan: res, type: res.type === 'unknown' ? null : res.type, modelId: null, estimate: null, done: {}, extraHashes: [], lot: null, works: null, qty: 1, condition: null })
       nav('/scan/confirm')
     } catch (e) { setErr((e as Error).message); setBusy(false) }
   }

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLang } from '../../lib/i18n.tsx'
 import { useApi } from '../../lib/useApi.ts'
 import { api } from '../../lib/api.ts'
-import type { SafetyPack, Lang } from '../../lib/types.ts'
+import type { SafetyPack, ContentLang as Lang } from '../../lib/types.ts'
 import { Tag, Btn, Loading, ErrorNote, Banner, Field, inputCls } from '../../components/ui.tsx'
 
 export default function SafetyEditor() {

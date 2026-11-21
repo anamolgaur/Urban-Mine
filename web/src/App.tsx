@@ -18,12 +18,15 @@ import { RepairerJobs, RepairerListing, RepairerBrowse } from './screens/worker/
 import Profile, { homeFor } from './screens/worker/Profile.tsx'
 import Recycler from './screens/recycler/Recycler.tsx'
 import Auditor from './screens/auditor/Auditor.tsx'
+import Login from './screens/auth/Login.tsx'
+import Onboarding from './screens/auth/Onboarding.tsx'
+import Pending from './screens/auth/Pending.tsx'
 
 export default function App() {
-  const { me, error, reload } = useSession()
+  const { me, status, error, reload } = useSession()
   const { t } = useLang()
 
-  if (error) {
+  if (status === 'error') {
     return (
       <div className="mx-auto max-w-[480px] p-4">
         <Banner tone="bad" icon="alert">{t('api_down')} <span className="num">{error}</span></Banner>
@@ -31,7 +34,11 @@ export default function App() {
       </div>
     )
   }
+  if (status === 'signed_out') return <Login />
+  if (status === 'needs_onboarding') return <Onboarding />
   if (!me) return <p className="p-10 text-center text-sm text-mute" role="status">{t('loading')}</p>
+  // recyclers and repairers wait for an auditor; the server enforces this too
+  if (me.user.approval !== 'approved') return <Pending />
 
   const role = me.user.role
   const start = homeFor(role)

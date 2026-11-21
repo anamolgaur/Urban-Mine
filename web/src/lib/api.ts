@@ -1,3 +1,9 @@
+/** Empty in dev (Vite proxies /api). In production set VITE_API_URL to the API host, e.g. https://urban-mine-api.onrender.com */
+const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replace(/\/$/, '')
+export const apiUrl = (path: string) => BASE + path
+
+import { supabase } from './supabase.ts'
+
 const KEY = 'um_user'
 export const DEFAULT_USER = 'u-worker-1'
 
@@ -8,21 +14,38 @@ export function setUserId(id: string) {
   try { localStorage.setItem(KEY, id) } catch { /* private mode */ }
 }
 
-const headers = (json: boolean): Record<string, string> => ({ 'x-user-id': getUserId(), ...(json ? { 'content-type': 'application/json' } : {}) })
+/** An API error. `code` is a stable machine-readable reason such as pending_approval or needs_onboarding. */
+export class ApiError extends Error {
+  status: number
+  code?: string
+  constructor(message: string, status: number, code?: string) { super(message); this.status = status; this.code = code }
+}
+
+/** Signed in: the Supabase access token (refreshed automatically). Demo mode: the sample user id. */
+async function headers(json: boolean): Promise<Record<string, string>> {
+  const h: Record<string, string> = json ? { 'content-type': 'application/json' } : {}
+  if (supabase) {
+    const { data } = await supabase.auth.getSession()
+    if (data.session) h.authorization = `Bearer ${data.session.access_token}`
+  } else {
+    h['x-user-id'] = getUserId()
+  }
+  return h
+}
 
 export async function api<T>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     method: opts.method ?? (opts.body !== undefined ? 'POST' : 'GET'),
-    headers: headers(opts.body !== undefined),
+    headers: await headers(opts.body !== undefined),
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
   })
   const data = await res.json().catch(() => ({}))
-  if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`)
+  if (!res.ok) throw new ApiError((data as { error?: string }).error ?? `Request failed (${res.status})`, res.status, (data as { code?: string }).code)
   return data as T
 }
 
 export async function fetchBlobUrl(path: string): Promise<string> {
-  const res = await fetch(path, { headers: headers(false) })
+  const res = await fetch(apiUrl(path), { headers: await headers(false) })
   if (!res.ok) throw new Error(`Request failed (${res.status})`)
   return URL.createObjectURL(await res.blob())
 }

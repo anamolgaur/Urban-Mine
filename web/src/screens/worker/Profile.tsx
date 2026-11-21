@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useLang } from '../../lib/i18n.tsx'
+import { useLang, LANGS } from '../../lib/i18n.tsx'
 import { useSession } from '../../lib/session.tsx'
 import { useApi } from '../../lib/useApi.ts'
 import { api } from '../../lib/api.ts'
@@ -10,12 +10,30 @@ import type { Role } from '../../lib/types.ts'
 import { Screen, H2, Btn, Banner, Tag, ErrorNote } from '../../components/ui.tsx'
 import { KV } from '../../components/kit.tsx'
 import Icon from '../../components/Icon.tsx'
+import { authEnabled } from '../../lib/supabase.ts'
 
 export const homeFor = (role: Role) => ({ worker: '/', repairer: '/repair', recycler: '/recycler', auditor: '/auditor' }[role])
 
+/** Shows whether device photos may be sent to an AI service for the condition check, and lets the worker withdraw that. */
+function VisionConsent() {
+  const { t } = useLang()
+  const v = useApi<{ enabled: boolean; consent: boolean }>('/api/vision')
+  const [done, setDone] = useState(false)
+  if (!v.data?.enabled && !v.data?.consent) return null
+  const on = v.data?.consent && !done
+  return (
+    <div className="mt-4">
+      <p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('pc_section')}</p>
+      <p className="mt-1 text-base leading-snug">{t(on ? 'pc_profile_on' : 'pc_profile_off')}</p>
+      {on && <div className="mt-2"><Btn variant="secondary" onClick={async () => { await api('/api/vision/consent', { body: { accepted: false } }).catch(() => {}); setDone(true) }}>{t('pc_withdraw')}</Btn></div>}
+      {done && <p className="mt-2 text-sm text-ok" role="status">{t('pc_withdrawn')}</p>}
+    </div>
+  )
+}
+
 export default function Profile() {
   const { t, lang, setLang } = useLang()
-  const { me, loginAs, reload } = useSession()
+  const { me, loginAs, reload, signOut } = useSession()
   const { reset } = useFlow()
   const nav = useNavigate()
   const users = useApi<{ id: string; role: Role; name: string }[]>('/api/users')
@@ -25,7 +43,7 @@ export default function Profile() {
   const [size, setSize] = useState<TextSize>(getTextSize)
 
   async function wipe() {
-    try { await api('/api/me/data', { method: 'DELETE' }); reset(); setDone(true); setConfirm(false); reload() } catch (e) { setErr((e as Error).message) }
+    try { await api('/api/me/data', { method: 'DELETE' }); reset(); setDone(true); setConfirm(false); if (authEnabled) await signOut(); else reload() } catch (e) { setErr((e as Error).message) }
   }
   if (!me) return null
   const phone = me.user.phone ? 'xxxxxx' + me.user.phone.slice(-4) : '–'
@@ -44,11 +62,12 @@ export default function Profile() {
         {me.workshop && <KV k={t('workshop_label')} v={me.workshop.name.replace('SAMPLE ', '')} />}
         {me.workshop && <KV k={t('address')} v={me.workshop.address.replace('SAMPLE: ', '')} />}
         <KV k={t('identity')} v={<Tag tone="bad">{t('simulated')}</Tag>} />
+        {me.user.role !== 'worker' && me.user.role !== 'auditor' && <KV k={t('approval_status')} v={<Tag tone={me.user.approval === 'approved' ? 'ok' : 'amber'}>{t('approval.' + me.user.approval)}</Tag>} />}
       </dl>
 
       <H2>{t('language')}</H2>
       <div className="grid grid-cols-2" role="radiogroup" aria-label={t('language')}>
-        {([['hi', 'हिन्दी'], ['en', 'English']] as const).map(([k, label]) => (
+        {LANGS.map(({ code: k, label }) => (
           <button key={k} role="radio" aria-checked={lang === k} onClick={() => setLang(k)}
             className={`min-h-12 border border-ink text-base font-semibold ${lang === k ? 'bg-ink text-paper' : 'bg-white'}`}>{lang === k && '✓ '}{label}</button>
         ))}
@@ -69,6 +88,7 @@ export default function Profile() {
 
       <H2>{t('privacy')}</H2>
       <p className="text-base leading-snug">{t('privacy_note')}</p>
+      {me.user.role === 'worker' && <VisionConsent />}
       {done && <div className="mt-3"><Banner tone="ok" icon="check">{t('deleted_ok')}</Banner></div>}
       {err && <ErrorNote message={err} />}
       {!confirm ? (
@@ -83,9 +103,11 @@ export default function Profile() {
         </div>
       )}
 
-      <H2>{t('demo_accounts')}</H2>
-      <p className="mb-2 text-base text-mute">{t('demo_accounts_hint')}</p>
-      <ul className="divide-y divide-hair border-y border-hair">
+      {authEnabled && <div className="mt-6"><Btn variant="secondary" icon="lock" onClick={signOut}>{t('sign_out')}</Btn></div>}
+
+      {!authEnabled && <H2>{t('demo_accounts')}</H2>}
+      {!authEnabled && <p className="mb-2 text-base text-mute">{t('demo_accounts_hint')}</p>}
+      {!authEnabled && <ul className="divide-y divide-hair border-y border-hair">
         {users.data?.map((u) => (
           <li key={u.id}>
             <button onClick={() => { loginAs(u.id); nav(homeFor(u.role)) }} aria-current={u.id === me.user.id}
@@ -95,7 +117,7 @@ export default function Profile() {
             </button>
           </li>
         ))}
-      </ul>
+      </ul>}
     </Screen>
   )
 }

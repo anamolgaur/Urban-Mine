@@ -1,7 +1,8 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Icon from './Icon.tsx'
-import { useLang } from '../lib/i18n.tsx'
+import { useLang, LANGS } from '../lib/i18n.tsx'
+import type { Lang } from '../lib/types.ts'
 
 /** Square mono tag. `tone` never carries meaning alone: every tag has text. */
 export function Tag({ children, tone = 'plain' }: { children: ReactNode; tone?: 'plain' | 'ok' | 'bad' | 'amber' | 'ink' }) {
@@ -40,12 +41,13 @@ export function Btn({ variant = 'primary', full = true, icon, className = '', ch
 export function LangToggle() {
   const { lang, setLang, t } = useLang()
   return (
-    <button onClick={() => setLang(lang === 'hi' ? 'en' : 'hi')} aria-label={t('switch_lang')}
-      className="inline-flex min-h-11 min-w-11 items-center justify-center gap-1.5 border border-ink px-2 font-mono text-sm font-semibold">
-      <Icon name="globe" size={18} />
-      <span className={lang === 'hi' ? 'bg-ink px-1 text-paper' : 'px-1'}>हि</span>
-      <span className={lang === 'en' ? 'bg-ink px-1 text-paper' : 'px-1'}>EN</span>
-    </button>
+    <label className="relative inline-flex min-h-11 items-center border border-ink bg-white">
+      <span className="pointer-events-none absolute left-2"><Icon name="globe" size={18} /></span>
+      <select aria-label={t('switch_lang')} value={lang} onChange={(e) => setLang(e.target.value as Lang)}
+        className="min-h-11 appearance-none bg-transparent py-0 pl-8 pr-2 text-sm font-semibold">
+        {LANGS.map((l) => <option key={l.code} value={l.code}>{l.label}</option>)}
+      </select>
+    </label>
   )
 }
 

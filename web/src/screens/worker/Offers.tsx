@@ -122,6 +122,9 @@ export default function Offers() {
             <>
               <H2 right={<SampleTag />}>{t('offers_title')}</H2>
               {offers.loading && <Skeleton rows={2} />}
+              {offers.data && offers.data.length > 0 && offers.data[0].fair && (
+                <p className="mb-3 border border-hair bg-white p-3 text-base leading-snug"><span className="num block font-semibold">{t('fair_range', { low: inr(offers.data[0].fair.low), high: inr(offers.data[0].fair.high) })}</span><span className="text-sm text-mute">{t('fair_note')}</span></p>
+              )}
               {offers.data && offers.data.length === 0 && (
                 <EmptyState art="offers" title={t('waiting_offers')} body={t('waiting_hint')} />
               )}
@@ -139,6 +142,7 @@ export default function Offers() {
                         <div className="shrink-0 text-right">
                           <p className="num text-3xl font-semibold">{inr(o.amount)}</p>
                           {idx === 0 && <Tag tone="amber">{t('best_offer')}</Tag>}
+                          {o.fair && <p className="mt-1"><Tag tone={o.fair.verdict === 'below' ? 'bad' : 'ok'}>{t('fair_' + o.fair.verdict)}</Tag></p>}
                         </div>
                       </div>
                       <div className="border-t border-hair px-3 py-2">

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useLang } from '../../lib/i18n.tsx'
 import { useFlow } from '../../lib/flow.tsx'
@@ -6,20 +6,25 @@ import { useSession } from '../../lib/session.tsx'
 import { useApi } from '../../lib/useApi.ts'
 import { packFor } from '../../lib/devices.ts'
 import { inr, dateShort } from '../../lib/format.ts'
+import { speak, stopSpeaking, useVoiceAvailable } from '../../lib/speech.ts'
 import type { Estimate, ModelRef, RepairComparison } from '../../lib/types.ts'
 import { Screen, H2, Btn, Banner, SampleTag, Tag, ErrorNote } from '../../components/ui.tsx'
 import { Skeleton, Rail } from '../../components/kit.tsx'
 import Icon from '../../components/Icon.tsx'
 import Composition from '../../components/Composition.tsx'
+import PhotoCheck from '../../components/PhotoCheck.tsx'
 
 export default function Result() {
-  const { t } = useLang()
+  const { t, lang } = useLang()
   const nav = useNavigate()
+  const [saying, setSaying] = useState(false)
+  const hasVoice = useVoiceAvailable(lang)
+  useEffect(() => () => stopSpeaking(), [])
   const { me } = useSession()
   const { flow, patch, reset } = useFlow()
   const city = me?.city ?? 'Delhi'
   const q = flow.type ? `city=${encodeURIComponent(city)}&type=${flow.type}${flow.modelId ? `&modelId=${flow.modelId}` : ''}` : null
-  const est = useApi<Estimate>(me && q ? `/api/estimate?${q}` : null)
+  const est = useApi<Estimate>(me && q ? `/api/estimate?${q}${flow.condition ? `&grade=${flow.condition.grade}` : ''}` : null)
   const dec = useApi<RepairComparison>(me && q && flow.works !== null ? `/api/repair/decision?${q}&works=${flow.works}` : null)
   const models = useApi<ModelRef[]>('/api/models')
 
@@ -30,6 +35,8 @@ export default function Result() {
   const e = est.data
   const qty = flow.qty
   const hasPack = packFor(flow.type) !== null
+  // the one number shown by default: the middle of the range (so it already includes any condition grade)
+  const baseline = e ? ((e.low + e.high) / 2) * qty : 0
   const updated = e ? Object.values(e.rates).map((r) => r.updated_at).sort().pop() : null
 
   return (
@@ -49,14 +56,19 @@ export default function Result() {
         {est.loading && <Skeleton rows={4} />}
         {e && (
           <>
-            <section className="mt-5 border-2 border-ink bg-white" aria-label={t('price_estimate')}>
-              <div className="p-4">
-                <p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('price_range')} · {t('for_items', { n: qty })}</p>
-                <p className="num mt-1 text-4xl font-semibold leading-tight">
-                  <span className="border-b-4 border-amber">{inr(e.low * qty)}</span><span className="px-1 text-mute">–</span><span className="border-b-4 border-amber">{inr(e.high * qty)}</span>
-                </p>
-                <p className="mt-2 text-base leading-snug text-mute">{e.basis === 'model' ? t('range_model') : t('range_type')} {t('not_an_offer')}</p>
-                {updated && <p className="mt-1 flex items-center gap-1 text-sm text-mute"><Icon name="clock" size={14} />{t('rates_updated', { date: dateShort(updated) })}</p>}
+            {/* One number, big, and it can be read aloud: for people who do not read much. */}
+            <section className="mt-5 border-2 border-ink bg-white" aria-label={t('baseline_title')}>
+              <div className="p-4 text-center">
+                <p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('baseline_title')} · {t('for_items', { n: qty })}</p>
+                <p className="num mt-2 text-6xl font-semibold leading-none"><span className="border-b-4 border-amber px-1">{inr(baseline)}</span></p>
+                <p className="mt-3 text-base leading-snug text-mute">{t('baseline_note')}</p>
+                <div className="mt-3">
+                  <button onClick={() => { if (saying) { stopSpeaking(); setSaying(false) } else { setSaying(true); speak(t('baseline_say', { amount: Math.round(baseline) }), lang, () => setSaying(false)) } }}
+                    aria-pressed={saying} className={`flex min-h-14 w-full items-center justify-center gap-2 border-2 border-ink px-3 text-base font-bold ${saying ? 'bg-ink text-paper' : 'bg-white'}`}>
+                    <Icon name="volume" size={24} />{saying ? t('stop_audio') : t('listen')}
+                  </button>
+                  {!hasVoice && <p className="mt-1 text-sm text-mute">{t('no_voice')}</p>}
+                </div>
               </div>
               <div className="flex items-center justify-between border-t border-hair px-4 py-2">
                 <span className="text-base font-semibold">{t('how_many')}</span>
@@ -68,16 +80,25 @@ export default function Result() {
               </div>
             </section>
 
-            <details className="mt-2 border border-hair bg-white">
-              <summary className="flex min-h-11 cursor-pointer items-center gap-2 px-3 text-base font-semibold"><Icon name="info" size={18} />{t('calc_title')}</summary>
-              <p className="px-3 pb-3 text-base leading-snug text-mute">{t('calc_body')}</p>
-            </details>
+            <details className="mt-3 border border-hair bg-white">
+              <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-3 text-base font-semibold"><Icon name="info" size={18} />{t('details_show')}</summary>
+              <div className="px-3 pb-4">
+            <section aria-label={t('price_estimate')} className="mt-2 border border-ink bg-white p-3">
+              <p className="text-sm font-semibold uppercase tracking-wide text-mute">{t('price_range')} · {t('for_items', { n: qty })}</p>
+              <p className="num mt-1 text-3xl font-semibold leading-tight">
+                <span className="border-b-4 border-amber">{inr(e.low * qty)}</span><span className="px-1 text-mute">–</span><span className="border-b-4 border-amber">{inr(e.high * qty)}</span>
+              </p>
+              <p className="mt-2 text-base leading-snug text-mute">{e.basis === 'model' ? t('range_model') : t('range_type')} {t('not_an_offer')}</p>
+              {updated && <p className="mt-1 flex items-center gap-1 text-sm text-mute"><Icon name="clock" size={14} />{t('rates_updated', { date: dateShort(updated) })}</p>}
+            </section>
+
+            <p className="mt-3 text-base leading-snug text-mute"><span className="font-semibold">{t('calc_title')}.</span> {t('calc_body')}</p>
+
+            <PhotoCheck factor={e.condition?.factor} />
 
             <H2>{t('whats_inside')}</H2>
             <Composition est={e} qty={qty} />
             <p className="mt-2 text-sm text-mute">{t('rates_for', { city })}</p>
-          </>
-        )}
 
         <H2>{t('verdict_title')}</H2>
         <p className="mb-2 text-base font-semibold">{t('repair_q')}</p>
@@ -109,6 +130,11 @@ export default function Result() {
             <p className="flex flex-wrap items-center gap-2 border-t border-hair p-3 text-sm text-mute"><SampleTag />{t('verdict_repair_note')}</p>
             {dec.data.recommend === 'repair' && <div className="px-3 pb-3"><Btn variant="secondary" onClick={() => nav('/repair')} icon="repair">{t('see_repair')}</Btn></div>}
           </div>
+        )}
+
+              </div>
+            </details>
+          </>
         )}
 
         {!hasPack && <div className="mt-4"><Banner icon="info">{t('no_pack')}</Banner></div>}

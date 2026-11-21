@@ -1,4 +1,4 @@
-import type { DatabaseSync } from 'node:sqlite';
+import type { Db } from './db.ts';
 
 export type Lang = 'hi' | 'en';
 export const isLang = (v: unknown): v is Lang => v === 'hi' || v === 'en';
@@ -14,15 +14,15 @@ export type SafetyPack = {
   draft_banner: string; emergency: string; gear: string[]; steps: SafetyStep[];
 };
 
-export function getSafetyPack(db: DatabaseSync, deviceType: string, lang: Lang): SafetyPack | null {
-  const r = db.prepare('SELECT * FROM safety_pack WHERE device_type = ? AND language = ?').get(deviceType, lang) as Record<string, any> | undefined;
+export async function getSafetyPack(db: Db, deviceType: string, lang: Lang): Promise<SafetyPack | null> {
+  const r = await db.prepare('SELECT * FROM safety_pack WHERE device_type = ? AND language = ?').get(deviceType, lang) as Record<string, any> | undefined;
   if (!r) return null;
   const body = JSON.parse(r.steps_json);
   return { device_type: r.device_type, language: r.language, version: r.version, reviewed_by: r.reviewed_by, draft: r.reviewed_by === null, ...body };
 }
 
-export function listSafetyTypes(db: DatabaseSync): string[] {
-  return (db.prepare('SELECT DISTINCT device_type FROM safety_pack ORDER BY device_type').all() as { device_type: string }[]).map((r) => r.device_type);
+export async function listSafetyTypes(db: Db): Promise<string[]> {
+  return (await db.prepare('SELECT DISTINCT device_type FROM safety_pack ORDER BY device_type').all() as { device_type: string }[]).map((r) => r.device_type);
 }
 
 // ---- progress through a pack (immutable updates) ----

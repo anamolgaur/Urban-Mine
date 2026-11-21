@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { Lang } from './types.ts'
 
-const prefix = (l: Lang) => (l === 'hi' ? 'hi' : 'en')
+/** Voice tag for each app language. */
+const TAG: Record<Lang, string> = { hi: 'hi-IN', en: 'en-IN', bn: 'bn-IN', ta: 'ta-IN', te: 'te-IN', mr: 'mr-IN', gu: 'gu-IN' }
+const prefix = (l: Lang) => TAG[l].slice(0, 2)
 
 function voices(): SpeechSynthesisVoice[] {
   return typeof speechSynthesis === 'undefined' ? [] : speechSynthesis.getVoices()
@@ -25,7 +27,7 @@ export function speak(text: string, lang: Lang, onEnd?: () => void) {
   if (typeof speechSynthesis === 'undefined') return
   speechSynthesis.cancel()
   const u = new SpeechSynthesisUtterance(text)
-  u.lang = lang === 'hi' ? 'hi-IN' : 'en-IN'
+  u.lang = TAG[lang]
   const all = voices()
   const v = all.find((x) => x.lang.toLowerCase().replace('_', '-') === u.lang.toLowerCase()) ?? all.find((x) => x.lang.toLowerCase().startsWith(prefix(lang)))
   if (v) u.voice = v
