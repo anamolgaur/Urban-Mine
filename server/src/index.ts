@@ -33,6 +33,12 @@ async function fill(db: Db) {
   await setMeta(db, 'seed_version', String(SEED_VERSION));
 }
 
+// On a hosting service the database must be configured. Falling back to the local test database there would run out of memory and look like a mystery crash.
+if (!DATABASE_URL && (process.env.RENDER || process.env.NODE_ENV === 'production')) {
+  console.error('FATAL: DATABASE_URL is not set. Add DATABASE_URL (your Supabase connection string), SUPABASE_URL and SUPABASE_ANON_KEY in the environment settings of this service, then redeploy.');
+  process.exit(1);
+}
+
 let db: Db;
 if (DATABASE_URL) {
   db = await openDb({ url: DATABASE_URL });
