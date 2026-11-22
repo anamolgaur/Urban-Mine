@@ -24,5 +24,5 @@ try {
 const left = await db.prepare("SELECT COUNT(*) c FROM workshop WHERE id = 'check-ws'").get();
 console.log(left.c === 0 ? 'transaction write + rollback: OK' : 'ROLLBACK FAILED');
 const users = await db.prepare('SELECT COUNT(*) c FROM app_user').get();
-console.log(`app_user rows: ${users.c}${users.c === 0 ? ' (empty: start the API once with SEED_DEMO=1 to load sample data)' : ''}`);
+console.log(`app_user rows: ${users.c}${users.c === 0 ? ' (no accounts yet, which is fine: prices and guides load on the first start)' : ''}`);
 await db.close();
