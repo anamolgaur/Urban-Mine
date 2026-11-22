@@ -28,11 +28,12 @@ export default function Result() {
   const resaleQ = flow.works && (flow.resaleId || flow.customPrice) ? `&works=true&condition=${flow.wear}${flow.resaleId ? `&resaleId=${flow.resaleId}` : `&custom=${flow.customPrice}`}` : ''
   const est = useApi<Estimate>(me && q && flow.works !== null ? `/api/estimate?${q}${flow.condition ? `&grade=${flow.condition.grade}` : ''}${resaleQ}` : null)
   const resale = useApi<ResaleModel[]>(flow.type && flow.works ? `/api/resale?type=${flow.type}` : null)
-  // phone model from how it looks (on-device). Only offered for phones; picked for you only when fairly sure and no label text matched.
-  const looks = flow.type === 'phone' ? (flow.looks ?? []).filter((l) => (resale.data ?? []).some((m) => m.id === l.id)) : []
+  // exact model from how it looks (on-device). Offered for phones and laptops; picked for you only when fairly sure and no label text matched.
+  const typeLooks = (flow.type && !Array.isArray(flow.looks) ? flow.looks?.[flow.type] : null) ?? []
+  const looks = typeLooks.filter((l) => (resale.data ?? []).some((m) => m.id === l.id))
   const lookTop = looks.filter((l) => l.p >= 0.08).slice(0, 3)
   const lookPick = looks[0] && looks[0].p >= 0.5 ? looks[0] : null
-  const lookBrand = looks.length ? (() => { const by: Record<string, number> = {}; for (const l of flow.looks ?? []) by[l.brand] = (by[l.brand] ?? 0) + l.p; return Object.entries(by).sort((a, b) => b[1] - a[1])[0]?.[0] })() : undefined
+  const lookBrand = looks.length ? (() => { const by: Record<string, number> = {}; for (const l of typeLooks) by[l.brand] = (by[l.brand] ?? 0) + l.p; return Object.entries(by).sort((a, b) => b[1] - a[1])[0]?.[0] })() : undefined
   useEffect(() => { // the model list arrived after "yes, it works": apply the best guess then
     if (flow.works && !flow.resaleId && !flow.customPrice && resale.data) {
       const id = flow.scan?.resale?.id ?? lookPick?.id

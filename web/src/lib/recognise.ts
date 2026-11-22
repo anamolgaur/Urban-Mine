@@ -16,30 +16,32 @@ import ortMjs from 'onnxruntime-web/ort-wasm-simd-threaded.mjs?url'
 
 export type Kind = 'phone' | 'laptop' | 'tablet' | 'charger' | 'screen' | 'router' | 'set_top_box' | 'other'
 export type Look = { id: string; brand: string; p: number }
-export type Guess = { best: Kind; confidence: number; ranked: { kind: Kind; p: number }[]; photos: number; looks: Look[] }
+export type Guess = { best: Kind; confidence: number; ranked: { kind: Kind; p: number }[]; photos: number; looks: Record<string, Look[]> }
 
 const MODEL_URL = '/models/mobileclip_s0/vision_fp16.onnx'
 const HEAD_URL = '/models/device_head.v1.json'
-// Phone model from looks: brand right ~93%, exact model in the top 3 ~68% (leave-one-out on Wikimedia Commons photos).
-// Only a suggestion: text read from the label or the About-phone screen always wins.
-const PHONE_HEAD_URL = '/models/phone_model_head.v1.json'
+// Exact model from looks, per device type (trained on Wikimedia Commons photos, tested leave-one-out).
+// Only a suggestion: text read from the label or the About screen always wins.
+const MODEL_HEADS: Record<string, string> = { phone: '/models/phone_model_head.v1.json', laptop: '/models/laptop_model_head.v1.json' }
 const SIZE = 256
 
 type Head = { classes: Kind[]; W: number[][]; b: number[] }
-type PhoneHead = { classes: string[]; W: number[][]; b: number[]; brand: Record<string, string> }
-let ready: Promise<{ ort: typeof Ort; session: Ort.InferenceSession; head: Head; phone: PhoneHead | null }> | null = null
+type ModelHead = { classes: string[]; W: number[][]; b: number[]; brand: Record<string, string> }
+let ready: Promise<{ ort: typeof Ort; session: Ort.InferenceSession; head: Head; models: Record<string, ModelHead | null> }> | null = null
 
 async function load() {
   ready ??= (async () => {
     const ort = await import('onnxruntime-web/wasm')
     ort.env.wasm.wasmPaths = { wasm: ortWasm, mjs: ortMjs }
     ort.env.wasm.numThreads = 1 // threads need special server headers; one thread is fast enough for a few photos
-    const [session, head, phone] = await Promise.all([
+    const getHead = (url: string) => fetch(url).then((r) => (r.ok ? (r.json() as Promise<ModelHead>) : null)).catch(() => null)
+    const [session, head, ...heads] = await Promise.all([
       ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' }),
       fetch(HEAD_URL).then((r) => { if (!r.ok) throw new Error('model'); return r.json() as Promise<Head> }),
-      fetch(PHONE_HEAD_URL).then((r) => (r.ok ? (r.json() as Promise<PhoneHead>) : null)).catch(() => null),
+      ...Object.values(MODEL_HEADS).map(getHead),
     ])
-    return { ort, session, head, phone }
+    const models = Object.fromEntries(Object.keys(MODEL_HEADS).map((k, i) => [k, heads[i] as ModelHead | null]))
+    return { ort, session, head, models }
   })()
   try { return await ready } catch (e) { ready = null; throw e }
 }
@@ -97,7 +99,7 @@ const cache = new Map<string, Promise<number[]>>() // photo -> embedding
 
 /** Best guess from every photo taken so far (averaged: more photos, steadier answer). Null if no photo could be read. */
 export async function recognise(dataUrls: string[]): Promise<Guess | null> {
-  const { head, phone } = await load()
+  const { head, models } = await load()
   const xs = (await Promise.all(dataUrls.map((u) => {
     if (!cache.has(u)) cache.set(u, embed(u).catch(() => { cache.delete(u); return [] }))
     return cache.get(u)!
@@ -106,10 +108,12 @@ export async function recognise(dataUrls: string[]): Promise<Guess | null> {
   const mean = (ps: number[][]) => ps[0].map((_, k) => ps.reduce((s, p) => s + p[k], 0) / ps.length)
   const avg = mean(xs.map((x) => softmax(head.W, head.b, x)))
   const ranked = head.classes.map((kind, k) => ({ kind, p: avg[k] })).sort((x, y) => y.p - x.p)
-  let looks: Look[] = []
-  if (phone && (ranked[0].kind === 'phone' || ranked.find((r) => r.kind === 'phone')!.p > 0.2)) {
-    const pm = mean(xs.map((x) => softmax(phone.W, phone.b, x)))
-    looks = phone.classes.map((id, k) => ({ id, brand: phone.brand[id], p: pm[k] })).sort((x, y) => y.p - x.p).slice(0, 5)
+  // exact-model guesses for every type that has a model guide (phone, laptop); the screen shows the one matching the type the worker confirms
+  const looks: Record<string, Look[]> = {}
+  for (const [kind, mh] of Object.entries(models)) {
+    if (!mh) continue
+    const pm = mean(xs.map((x) => softmax(mh.W, mh.b, x)))
+    looks[kind] = mh.classes.map((id, k) => ({ id, brand: mh.brand[id], p: pm[k] })).sort((x, y) => y.p - x.p).slice(0, 5)
   }
   return { best: ranked[0].kind, confidence: ranked[0].p, ranked, photos: xs.length, looks }
 }

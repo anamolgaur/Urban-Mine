@@ -44,10 +44,16 @@ export const RESALE: ResaleModel[] = [
   { id: 'rs-oppo-a15s', type: 'phone', brand: 'OPPO', model: 'A15s', good: 4000, source: 'Cashify buyback, 2026' },
   { id: 'rs-oppo-a15', type: 'phone', brand: 'OPPO', model: 'A15', good: 3300, source: 'Cashify buyback, 2026' },
   // Laptops (used business laptops sell for about half the certified-refurbished retail price)
-  { id: 'rs-latitude', type: 'laptop', brand: 'Dell', model: 'Latitude (Core i5, 8th–10th gen)', good: 14000, source: 'Edify refurbished price index, 2026' },
-  { id: 'rs-thinkpad', type: 'laptop', brand: 'Lenovo', model: 'ThinkPad T / E series (Core i5)', good: 12000, source: 'Edify refurbished price index, 2026' },
-  { id: 'rs-elitebook', type: 'laptop', brand: 'HP', model: 'EliteBook / ProBook (Core i5)', good: 15000, source: 'Edify second-hand guide, 2026' },
-  { id: 'rs-mba-m1', type: 'laptop', brand: 'Apple', model: 'MacBook Air M1', good: 28000, source: 'TechEnclave used listings, 2026' },
+  { id: 'rs-latitude', type: 'laptop', brand: 'Dell', model: 'Latitude (Core i5, 8th–10th gen)', codes: ['latitude'], good: 14000, source: 'Edify refurbished price index, 2026' },
+  { id: 'rs-thinkpad', type: 'laptop', brand: 'Lenovo', model: 'ThinkPad T / E series (Core i5)', codes: ['thinkpad'], good: 12000, source: 'Edify refurbished price index, 2026' },
+  { id: 'rs-elitebook', type: 'laptop', brand: 'HP', model: 'EliteBook / ProBook (Core i5)', codes: ['elitebook', 'probook'], good: 15000, source: 'Edify second-hand guide, 2026' },
+  { id: 'rs-mba-m1', type: 'laptop', brand: 'Apple', model: 'MacBook Air M1', codes: ['macbook air', 'a2337'], good: 28000, source: 'TechEnclave used listings, 2026' },
+  // Everyday laptops: Cashify / Cashkr top buyback ("up to") quotes, 2026. "good" sits just under the top quote.
+  { id: 'rs-ideapad', type: 'laptop', brand: 'Lenovo', model: 'IdeaPad (Slim 3 / 5)', codes: ['ideapad'], good: 12000, source: 'Cashify buyback: IdeaPad Slim 3i up to Rs 17,330, IdeaPad 5 up to Rs 12,500, 2026' },
+  { id: 'rs-aspire', type: 'laptop', brand: 'Acer', model: 'Aspire (3 / 5)', codes: ['aspire'], good: 11000, source: 'Cashify buyback: Aspire 5 up to Rs 13,740, 2026' },
+  { id: 'rs-vivobook', type: 'laptop', brand: 'Asus', model: 'VivoBook (14 / 15)', codes: ['vivobook', 'x51[3-5]'], good: 8500, source: 'Cashify up to Rs 9,250; Cashkr up to Rs 10,000, 2026' },
+  { id: 'rs-pavilion', type: 'laptop', brand: 'HP', model: 'Pavilion (Core i3 / i5)', codes: ['pavilion'], good: 9000, source: 'Consumer tier: keeps 30-40% of new price (Edify, 2026); in line with VivoBook / Aspire buyback' },
+  { id: 'rs-inspiron', type: 'laptop', brand: 'Dell', model: 'Inspiron (Core i3 / i5)', codes: ['inspiron'], good: 9000, source: 'Consumer tier: keeps 30-40% of new price (Edify, 2026); in line with VivoBook / Aspire buyback' },
   { id: 'rs-laptop-basic', type: 'laptop', brand: 'Any', model: 'Basic home laptop (Core i3 / older)', good: 7000, source: 'Edify / TechEnclave lower band, 2026' },
 ];
 
