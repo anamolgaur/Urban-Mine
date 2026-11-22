@@ -2,8 +2,12 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig } from 'vite'
+import { readFileSync } from 'node:fs'
+
+const ORT_VERSION = JSON.parse(readFileSync(new URL('./node_modules/onnxruntime-web/package.json', import.meta.url), 'utf8')).version
 
 export default defineConfig({
+  define: { __ORT_VERSION__: JSON.stringify(ORT_VERSION) },
   plugins: [
     react(),
     tailwindcss(),
@@ -29,9 +33,9 @@ export default defineConfig({
         runtimeCaching: [
           { urlPattern: ({ url, request }) => request.method === 'GET' && url.pathname.startsWith('/api/') && !url.pathname.includes('/auth'),
             handler: 'NetworkFirst', options: { cacheName: 'api', networkTimeoutSeconds: 6, expiration: { maxEntries: 200, maxAgeSeconds: 7 * 86400 } } },
-          { urlPattern: /\/models\//, handler: 'CacheFirst', options: { cacheName: 'models', expiration: { maxEntries: 20 } } },
+          { urlPattern: /\/(models|ort)\//, handler: 'CacheFirst', options: { cacheName: 'models', expiration: { maxEntries: 20 } } },
         ],
-        globIgnores: ['**/models/**'],
+        globIgnores: ['**/models/**', '**/ort/**', '**/*.br', '**/*.gz'],
       },
     }),
   ],

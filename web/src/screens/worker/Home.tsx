@@ -98,29 +98,29 @@ export default function Home() {
           {['copper', 'aluminium', 'pcb'].filter((m) => rates.data![m]).map((m) => {
             const r = rates.data![m]
             return (
-              <li key={m} className="flex min-h-12 items-center justify-between py-2">
-                <span className="flex-1 text-base font-medium">{t('mat.' + m)}</span>
+              <li key={m} className="py-3">
+                <div className="flex items-baseline justify-between gap-3">
+                  <span className="text-base font-semibold">{t('mat.' + m)}</span>
+                  <span className="num whitespace-nowrap text-xl"><span className="font-semibold">{inr(r.rate)}</span><span className="text-sm text-mute">/kg</span></span>
+                </div>
                 {(() => {
                   const h = hist.data?.[m]?.map((x) => x.rate) ?? []
-                  if (h.length < 2) return null
-                  const pct = Math.round(((h[h.length - 1] - h[0]) / h[0]) * 100)
+                  const pct = h.length >= 7 ? Math.round(((h[h.length - 1] - h[0]) / h[0]) * 100) : null
+                  const tone = (v: number) => (v > 0 ? 'text-ok' : v < 0 ? 'text-bad' : 'text-mute')
                   return (
-                    <span className="mr-3 flex items-center gap-2" title={t('trend_30d')}>
-                      <Sparkline values={h} />
-                      <span className={`num w-12 text-right text-sm font-semibold ${pct > 0 ? 'text-ok' : pct < 0 ? 'text-bad' : 'text-mute'}`}>{pct > 0 ? '+' : ''}{pct}%</span>
-                    </span>
+                    <div className="mt-1 flex items-center gap-3 text-sm">
+                      {pct !== null ? <Sparkline values={h} height={22} fluid /> : <span className="flex-1" />}
+                      {pct !== null && <span className="whitespace-nowrap text-mute">{t('days_30')} <b className={`num ${tone(pct)}`}>{pct > 0 ? '+' : ''}{pct}%</b></span>}
+                      {r.change !== null && <span className="whitespace-nowrap text-mute">{t('today')} <b className={`num ${tone(r.change)}`}>{r.change === 0 ? '–' : `${r.change > 0 ? '▲' : '▼'} ₹${Math.abs(r.change)}`}</b></span>}
+                    </div>
                   )
                 })()}
-                <span className="num text-right text-lg">
-                  <span className="font-semibold">{inr(r.rate)}</span><span className="text-sm text-mute">/kg</span>
-                  {r.change !== null && <span className="ml-2 text-sm">{r.change === 0 ? '–' : `${r.change > 0 ? '▲' : '▼'} ${Math.abs(r.change)}`}</span>}
-                </span>
               </li>
             )
           })}
         </Rule>
       )}
-      <p className="mt-1 text-sm text-mute">{t('vs_yesterday')} · {t('trend_30d')}</p>
+      <p className="mt-1 text-sm text-mute">{t('rates_note')}</p>
 
       <H2>{t('recent_activity')}</H2>
       {activity.length === 0 ? <p className="py-3 text-sm text-mute">{t('no_activity')}</p> : (

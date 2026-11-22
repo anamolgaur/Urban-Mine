@@ -5,9 +5,9 @@ import { useFlow } from '../../lib/flow.tsx'
 import { api } from '../../lib/api.ts'
 import { DEVICE_TYPES } from '../../lib/devices.ts'
 import { fileToDataUrl } from '../../lib/image.ts'
-import { recogniseType, warmUp } from '../../lib/recognise.ts'
+import { recognise, warmUp, type Guess, type Kind } from '../../lib/recognise.ts'
 import type { ScanResult } from '../../lib/types.ts'
-import { Screen, H2, Btn, ErrorNote, Banner, inputCls } from '../../components/ui.tsx'
+import { Screen, H2, Btn, ErrorNote, inputCls } from '../../components/ui.tsx'
 import { Rail } from '../../components/kit.tsx'
 import Illustration from '../../components/Illustration.tsx'
 import Icon from '../../components/Icon.tsx'
@@ -45,10 +45,32 @@ export default function Scan() {
   const [active, setActive] = useState(firstEmpty === -1 ? 0 : firstEmpty)
   const taken = flow.images.filter(Boolean).length
   const img = flow.images[active]
-  // on-device photo recognition: suggests the device type, the worker can always change it
-  const [seen, setSeen] = useState<{ type: string; label: string } | null>(null)
+  // On-device photo recognition: looks at every photo, suggests a type; the worker always has the final say.
+  const [guess, setGuess] = useState<Guess | null>(null)
   const [looking, setLooking] = useState(false)
+  const [picked, setPicked] = useState(false) // the worker chose a type themselves: never overwrite it
   useEffect(() => { warmUp() }, [])
+  const photos = flow.images.filter(Boolean) as string[]
+  const photoKey = photos.map((p) => p.length + p.slice(-24)).join('|')
+  useEffect(() => {
+    if (!photos.length) { setGuess(null); return }
+    let gone = false
+    setLooking(true)
+    recognise(photos).then((g) => {
+      if (gone || !g) return
+      setGuess(g)
+      // sure enough, and not a screen (flat or tube is asked): pre-select it
+      if (!picked && g.confidence >= 0.6 && g.best !== 'other' && g.best !== 'screen') patch({ hint: g.best })
+    }).catch(() => {}).finally(() => { if (!gone) setLooking(false) })
+    return () => { gone = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [photoKey])
+  const pick = (hint: string | null) => { setPicked(true); patch({ hint }) }
+  const sure = guess && guess.confidence >= 0.6
+  // the two likeliest of our types, for "Is it a … or a …?"
+  const options = guess ? guess.ranked.filter((r) => r.kind !== 'other' && r.p >= 0.08).slice(0, 2).map((r) => r.kind) : []
+  const isScreen = guess?.best === 'screen' || (!sure && options.includes('screen'))
+  const kindLabel = (k: Kind) => (k === 'screen' ? t('type_screen') : t('type.' + k))
 
   // The three stages are real work on the server (upload, OCR, matching); the timer only paces the display.
   useEffect(() => {
@@ -62,14 +84,6 @@ export default function Scan() {
     try {
       const url = await fileToDataUrl(f)
       setImage(active, url)
-      if (!seen) {
-        setLooking(true)
-        recogniseType(url).then((g) => {
-          if (!g) return
-          setSeen({ type: g.type, label: g.label })
-          if (!flow.hint) patch({ hint: g.type })
-        }).catch(() => {}).finally(() => setLooking(false))
-      }
       const nextEmpty = flow.images.findIndex((x, j) => !x && j !== active)
       if (nextEmpty !== -1) setActive(nextEmpty)
     } catch (e) { setErr((e as Error).message) }
@@ -133,9 +147,35 @@ export default function Scan() {
         </ul>
 
         <H2>{t('what_is_it')}</H2>
-        {looking && <p className="mb-2 text-base text-mute" role="status">{t('ai_looking')}</p>}
-        {seen && <div className="mb-2"><Banner icon="info">{t('ai_seen', { type: t('type.' + seen.type) })}</Banner></div>}
-        <TypeGrid value={flow.hint} onPick={(hint) => patch({ hint })} allowUnsure />
+        <div aria-live="polite">
+          {looking && !guess && <p className="mb-2 text-base text-mute" role="status">{t('ai_looking')}</p>}
+          {guess && !picked && (
+            <div className="mb-3 rounded-2xl border border-hair bg-white p-3">
+              {guess.best === 'other' && !options.length ? (
+                <p className="text-base">{t('ai_not_ours')}</p>
+              ) : isScreen ? (
+                <>
+                  <p className="mb-2 text-base font-semibold">{t('ai_screen_q')}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Btn variant="secondary" onClick={() => pick('lcd_monitor')}>{t('screen_flat')}</Btn>
+                    <Btn variant="secondary" onClick={() => pick('crt_monitor')}>{t('screen_tube')}</Btn>
+                  </div>
+                </>
+              ) : sure ? (
+                <p className="text-base">{t('ai_sure', { type: kindLabel(guess.best) })}</p>
+              ) : (
+                <>
+                  <p className="mb-2 text-base font-semibold">{options.length > 1 ? t('ai_which', { a: kindLabel(options[0]), b: kindLabel(options[1]) }) : t('ai_maybe', { type: kindLabel(options[0]) })}</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {options.map((k) => <Btn key={k} variant="secondary" icon={k} onClick={() => pick(k)}>{kindLabel(k)}</Btn>)}
+                  </div>
+                </>
+              )}
+              {guess.photos < 2 && photos.length < 4 && <p className="mt-2 text-sm text-mute">{t('ai_more_photos')}</p>}
+            </div>
+          )}
+        </div>
+        <TypeGrid value={flow.hint} onPick={pick} allowUnsure />
 
         <H2>{t('label_text')}</H2>
         <input className={inputCls} value={flow.labelText} onChange={(e) => patch({ labelText: e.target.value })} placeholder={t('label_placeholder')} aria-label={t('label_text')} />

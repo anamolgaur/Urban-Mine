@@ -1,39 +1,41 @@
 /**
- * Free, on-device device-type recognition. A MobileNet image model runs inside the browser (TensorFlow.js);
- * the photo never leaves the phone for this step and nothing is paid for. The weights are served by this app
- * (web/public/models), about 14 MB, downloaded once and then cached by the browser.
+ * Free, on-device device-type recognition. Nothing is sent anywhere and nothing is paid for.
  *
- * MobileNet knows 1,000 everyday objects, not phone models: it can say "this is a phone" but not "Galaxy S25 Ultra".
- * The exact model is picked by the worker from a list.
+ * 1. MobileCLIP-S0 (Apple, fp16, about 23 MB, served by this app) turns a photo into 512 numbers that describe what is in it.
+ * 2. A small classifier trained for Urban Mine (models/device_head.v1.json, 37 KB) turns those numbers into one of our types.
+ *    It was trained on ImageNet device photos, real scrapyard photos (GIZ e-waste dataset) and shop photos. On scrapyard photos
+ *    it had never seen it picked the right type 90% of the time, and the right type was in its top two 98% of the time.
+ *
+ * Screens come back as 'screen': whether it is a deep tube (CRT) or flat (LCD) is asked, because the worker can see it at once.
+ * The model and engine download once (when the scan screen opens) and are cached for offline use.
  */
-type Guess = { type: string; confidence: number; label: string }
+import type * as Ort from 'onnxruntime-web'
 
-// ImageNet class names (lower case) -> our device types
-const MAP: [RegExp, string][] = [
-  [/cellular telephone|cellphone|mobile phone|ipod|dial telephone|pay-phone/, 'phone'],
-  [/hand-held computer|hand-held|pda/, 'phone'],
-  [/laptop|notebook computer|notebook/, 'laptop'],
-  [/television|tv\b/, 'crt_monitor'],
-  [/monitor|screen|crt screen|desktop computer/, 'lcd_monitor'],
-  [/modem|router/, 'router'],
-  [/remote control|cassette player|tape player|cd player|radio/, 'set_top_box'],
-  [/power drill|switch|electric plug|plug/, 'charger'],
-  [/ipad|tablet|web site/, 'tablet'],
-]
+export type Kind = 'phone' | 'laptop' | 'tablet' | 'charger' | 'screen' | 'router' | 'set_top_box' | 'other'
+export type Guess = { best: Kind; confidence: number; ranked: { kind: Kind; p: number }[]; photos: number }
 
-let modelPromise: Promise<{ classify: (img: HTMLImageElement, k?: number) => Promise<{ className: string; probability: number }[]> }> | null = null
+const MODEL_URL = '/models/mobileclip_s0/vision_fp16.onnx'
+const HEAD_URL = '/models/device_head.v1.json'
+const SIZE = 256
+
+type Head = { classes: Kind[]; W: number[][]; b: number[] }
+let ready: Promise<{ ort: typeof Ort; session: Ort.InferenceSession; head: Head }> | null = null
 
 async function load() {
-  modelPromise ??= (async () => {
-    const tf = await import('@tensorflow/tfjs')
-    await tf.ready()
-    const mobilenet = await import('@tensorflow-models/mobilenet')
-    return mobilenet.load({ version: 2, alpha: 1.0, modelUrl: '/models/mobilenet_v2/model.json' })
+  ready ??= (async () => {
+    const ort = await import('onnxruntime-web/wasm')
+    ort.env.wasm.wasmPaths = `/ort/${__ORT_VERSION__}/`
+    ort.env.wasm.numThreads = 1 // threads need special server headers; one thread is fast enough for a few photos
+    const [session, head] = await Promise.all([
+      ort.InferenceSession.create(MODEL_URL, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' }),
+      fetch(HEAD_URL).then((r) => { if (!r.ok) throw new Error('model'); return r.json() as Promise<Head> }),
+    ])
+    return { ort, session, head }
   })()
-  try { return await modelPromise } catch (e) { modelPromise = null; throw e }
+  try { return await ready } catch (e) { ready = null; throw e }
 }
 
-/** Start downloading the model early (e.g. when the scan screen opens) so the first guess is quick. */
+/** Start downloading early (when the scan screen opens) so the first answer is quick. */
 export function warmUp() { void load().catch(() => {}) }
 
 function toImage(src: string): Promise<HTMLImageElement> {
@@ -45,20 +47,51 @@ function toImage(src: string): Promise<HTMLImageElement> {
   })
 }
 
-/** Best device-type guess for a photo, or null if the model sees nothing it recognises as a device. */
-export async function recogniseType(dataUrl: string): Promise<Guess | null> {
-  const model = await load()
-  const preds = await model.classify(await toImage(dataUrl), 10)
-  const scores: Record<string, { p: number; label: string }> = {}
-  for (const p of preds) {
-    const name = p.className.toLowerCase()
-    const hit = MAP.find(([re]) => re.test(name))
-    if (!hit) continue
-    const s = scores[hit[1]] ?? { p: 0, label: p.className.split(',')[0] }
-    s.p += p.probability
-    scores[hit[1]] = s
+/** Two views of the photo, as the model was trained: the centre square, and the whole photo shrunk onto grey. */
+function views(img: HTMLImageElement): Float32Array {
+  const c = document.createElement('canvas'); c.width = SIZE; c.height = SIZE
+  const g = c.getContext('2d', { willReadFrequently: true })!
+  g.imageSmoothingQuality = 'high'
+  const w = img.naturalWidth, h = img.naturalHeight
+  const out = new Float32Array(2 * 3 * SIZE * SIZE)
+  const put = (k: number) => {
+    const d = g.getImageData(0, 0, SIZE, SIZE).data, base = k * 3 * SIZE * SIZE, n = SIZE * SIZE
+    for (let i = 0; i < n; i++) { out[base + i] = d[i * 4] / 255; out[base + n + i] = d[i * 4 + 1] / 255; out[base + 2 * n + i] = d[i * 4 + 2] / 255 }
   }
-  const best = Object.entries(scores).sort((a, b) => b[1].p - a[1].p)[0]
-  if (!best || best[1].p < 0.15) return null
-  return { type: best[0], confidence: Math.min(0.9, best[1].p), label: best[1].label }
+  const s = Math.min(w, h) // centre crop
+  g.drawImage(img, (w - s) / 2, (h - s) / 2, s, s, 0, 0, SIZE, SIZE); put(0)
+  const f = SIZE / Math.max(w, h), dw = w * f, dh = h * f // whole photo
+  g.fillStyle = 'rgb(128,128,128)'; g.fillRect(0, 0, SIZE, SIZE)
+  g.drawImage(img, (SIZE - dw) / 2, (SIZE - dh) / 2, dw, dh); put(1)
+  return out
+}
+
+const unit = (v: Float32Array | number[]) => { let s = 0; for (const x of v) s += x * x; s = Math.sqrt(s) || 1; return Array.from(v, (x) => x / s) }
+
+/** Probabilities for one photo. */
+async function scorePhoto(dataUrl: string): Promise<number[]> {
+  const { ort, session, head } = await load()
+  const input = new ort.Tensor('float32', views(await toImage(dataUrl)), [2, 3, SIZE, SIZE])
+  const res = await session.run({ [session.inputNames[0]]: input })
+  const e = res[session.outputNames[0]].data as Float32Array
+  const a = unit(e.subarray(0, 512)), b = unit(e.subarray(512, 1024))
+  const x = unit(a.map((v, i) => v + b[i]))
+  const z = head.W.map((row, k) => row.reduce((s, w, i) => s + w * x[i], head.b[k]))
+  const m = Math.max(...z), ex = z.map((v) => Math.exp(v - m)), sum = ex.reduce((s, v) => s + v, 0)
+  return ex.map((v) => v / sum)
+}
+
+const cache = new Map<string, Promise<number[]>>()
+
+/** Best guess from every photo taken so far (averaged: more photos, steadier answer). Null if no photo could be read. */
+export async function recognise(dataUrls: string[]): Promise<Guess | null> {
+  const { head } = await load()
+  const all = (await Promise.all(dataUrls.map((u) => {
+    if (!cache.has(u)) cache.set(u, scorePhoto(u).catch(() => { cache.delete(u); return [] }))
+    return cache.get(u)!
+  }))).filter((p) => p.length)
+  if (!all.length) return null
+  const avg = head.classes.map((_, k) => all.reduce((s, p) => s + p[k], 0) / all.length)
+  const ranked = head.classes.map((kind, k) => ({ kind, p: avg[k] })).sort((x, y) => y.p - x.p)
+  return { best: ranked[0].kind, confidence: ranked[0].p, ranked, photos: all.length }
 }

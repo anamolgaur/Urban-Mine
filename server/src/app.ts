@@ -635,10 +635,13 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   if (webDir) {
     await app.register(fastifyStatic, {
       root: webDir,
+      preCompressed: true, // send the .br/.gz copies made at build time when the browser accepts them
       // the service worker and page shell must always be re-checked, so a new release reaches phones; hashed assets never change
       setHeaders: (res, path) => {
         const p = path.replace(/\\/g, '/');
-        res.header('cache-control', /\/assets\//.test(p) ? 'public, max-age=31536000, immutable' : 'no-cache');
+        // hashed assets, the versioned AI engine and the model file never change in place
+        const forever = /\/assets\/|\/ort\/[\d.]+\/|\.onnx$/.test(p);
+        res.header('cache-control', forever ? 'public, max-age=31536000, immutable' : 'no-cache');
       },
     });
     // a page address such as /lots belongs to the app: send the shell. An unknown /api address stays a JSON 404.

@@ -1,0 +1,11 @@
+{
+ "phone": ["a photo of a mobile phone","a photo of a smartphone","a photo of an old broken mobile phone","a photo of a keypad feature phone","a photo of the back of a smartphone"],
+ "laptop": ["a photo of a laptop","a photo of an old broken laptop","a photo of an open notebook computer","a photo of a closed laptop"],
+ "tablet": ["a photo of a tablet computer","a photo of an android tablet","a photo of an ipad","a photo of a large touchscreen tablet"],
+ "charger": ["a photo of a phone charger","a photo of a mobile charger adapter with a USB cable","a photo of a wall charger plug","a photo of a laptop power adapter brick with cable","a photo of tangled charging cables"],
+ "crt_monitor": ["a photo of an old CRT television","a photo of the back of an old tube TV","a photo of a bulky CRT computer monitor"],
+ "lcd_monitor": ["a photo of a flat screen LCD monitor","a photo of a flat screen TV","a photo of a thin computer monitor"],
+ "router": ["a photo of a wifi router","a photo of a broadband modem with antennas","a photo of an internet router with blinking lights"],
+ "set_top_box": ["a photo of a cable TV set top box","a photo of a DTH satellite receiver box","a photo of a small black TV receiver box with a remote"],
+ "other": ["a photo of an object"]
+}
