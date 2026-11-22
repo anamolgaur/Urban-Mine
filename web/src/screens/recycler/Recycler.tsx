@@ -53,7 +53,7 @@ function BidForm({ lot, onDone }: { lot: MarketLot; onDone: () => void }) {
           <select className={inputCls} value={mins} onChange={(e) => setMins(e.target.value)}>{['15', '30', '60', '120'].map((m) => <option key={m} value={m}>{m} min</option>)}</select>
         </Field>
       </div>
-      <Field label={t('pickup_terms')}><input className={inputCls} value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="SAMPLE: pickup tomorrow 10am" /></Field>
+      <Field label={t('pickup_terms')}><input className={inputCls} value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="e.g. Pickup tomorrow 10am" /></Field>
       {err && <ErrorNote message={err} />}
       <Btn onClick={submit} disabled={busy || !(Number(amount) > 0)} icon="check">{lot.my_bid ? t('update_bid') : t('place_bid')}</Btn>
     </div>
@@ -143,7 +143,7 @@ function Market() {
       ) : (
         <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
           <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
-            <table className="w-full min-w-[760px] text-left text-base">
+            <table className="cards-sm w-full min-w-[760px] text-left text-base">
               <thead><tr className={THEAD}><Th>{t('col_lot')}</Th><Th>{t('col_category')}</Th><Th right>{t('col_weight')}</Th><Th>{t('col_seller')}</Th><Th>{t('col_evidence')}</Th><Th right>{t('col_expected')}</Th><Th right>{t('col_topbid')}</Th></tr></thead>
               <tbody>
                 {rows.map((l) => (
@@ -193,7 +193,7 @@ function MyOffers() {
     <div>
       {active.length === 0 ? <EmptyState art="offers" title={t('no_offers')} /> : (
         <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
-          <table className="w-full min-w-[640px] text-left text-base">
+          <table className="cards-sm w-full min-w-[640px] text-left text-base">
             <thead><tr className={THEAD}><Th>{t('col_lot')}</Th><Th>{t('col_seller')}</Th><Th right>{t('col_mybid')}</Th><Th>{t('col_terms')}</Th><Th right>{t('col_timeleft')}</Th></tr></thead>
             <tbody>
               {active.map((b) => {
@@ -243,7 +243,7 @@ function Purchases() {
     <>
       {err && <ErrorNote message={err} />}
       <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
-        <table className="w-full min-w-[640px] text-left text-base">
+        <table className="cards-sm w-full min-w-[640px] text-left text-base">
           <thead><tr className={THEAD}><Th>{t('col_lot')}</Th><Th>{t('col_seller')}</Th><Th right>{t('col_weight')}</Th><Th right>{t('col_amount')}</Th><Th>{t('col_receipt')}</Th></tr></thead>
           <tbody>
             {won.map((b) => (

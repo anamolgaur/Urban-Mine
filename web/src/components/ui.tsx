@@ -62,7 +62,7 @@ export function Header({ title, back = true, brand = false }: { title: string; b
           <Icon name="chevL" />
         </button>
       ) : brand ? (
-        <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-brand"><Icon name="lots" size={20} className="text-amber" /></span>
+        <img src="/icon-192.png" alt="" width={40} height={40} className="h-10 w-10 shrink-0 rounded-xl" />
       ) : null}
       <h1 className="flex-1 truncate text-xl font-bold">{title}</h1>
       <LangToggle />

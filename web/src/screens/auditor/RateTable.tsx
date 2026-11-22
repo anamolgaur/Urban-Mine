@@ -43,7 +43,7 @@ export default function RateTable() {
       <div className="mb-3 flex items-center gap-2"><SampleTag /><span className="text-sm text-mute">{t('rates_help')}</span></div>
       {data.stale.length > 0 && <div className="mb-3"><Banner tone="amber" icon="clock">{t('stale_banner', { n: data.stale.length })}</Banner></div>}
       <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="cards-sm w-full min-w-[760px] text-left text-sm">
           <thead><tr className="border-b border-hair text-sm">{['material', 'col_city', 'col_rate', 'col_updated', 'col_source', ''].map((h, i) => <th key={i} className="px-3 py-2 font-semibold">{h ? t(h) : ''}</th>)}</tr></thead>
           <tbody>{data.rates.map((r) => <Row key={r.material + r.city + r.rate_per_kg + r.updated_at} r={r} stale={staleKeys.has(r.material + r.city)} onSaved={reload} />)}</tbody>
         </table>

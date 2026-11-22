@@ -115,6 +115,13 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
 
   const webDir = deps.webDir && existsSync(join(resolve(deps.webDir), 'index.html')) ? resolve(deps.webDir) : null;
   if (!webDir) app.get('/', async () => ({ name: 'Urban Mine API', note: 'ALL DATA IS SAMPLE', try: '/api/safety/phone?lang=hi' }));
+  // Android app link: proves the Urban Mine APK (signed with this key) belongs to this site, so it opens full screen with no browser bar.
+  // The fingerprint is public by design. Change it only if the APK is re-signed with a new key.
+  const APK_SHA256 = process.env.APK_SHA256 ?? '3A:FB:E6:42:A6:C7:12:EC:E7:22:93:39:73:24:A4:E0:A8:BE:ED:60:07:D6:DC:0A:93:74:9F:9F:6F:74:FC:FB';
+  app.get('/.well-known/assetlinks.json', async (_req, reply) => {
+    reply.header('cache-control', 'public, max-age=3600');
+    return [{ relation: ['delegate_permission/common.handle_all_urls'], target: { namespace: 'android_app', package_name: 'com.urbanmine.app', sha256_cert_fingerprints: APK_SHA256.split(',').map((s) => s.trim()) } }];
+  });
   app.get('/api/health', async () => ({ ok: true }));
 
   // ---------- identity (mocked) ----------
@@ -640,7 +647,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
       setHeaders: (res, path) => {
         const p = path.replace(/\\/g, '/');
         // hashed assets, the versioned AI engine and the model file never change in place
-        const forever = /\/assets\/|\/ort\/[\d.]+\/|\.onnx$/.test(p);
+        const forever = /\/assets\/|\.onnx$/.test(p);
         res.header('cache-control', forever ? 'public, max-age=31536000, immutable' : 'no-cache');
       },
     });

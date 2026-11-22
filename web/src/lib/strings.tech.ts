@@ -30,4 +30,5 @@ export const TECH: Record<string, [string, string]> = {
   home_note_short: ['Sample data for the prototype.', 'प्रोटोटाइप के लिए नमूना डेटा।'],
   home_note: ['Sample data. Total weight in your lots:', 'नमूना डेटा। आपके लॉट का कुल वज़न:'],
   guides_draft: ['SAMPLE guides, not checked by a technician. Use with care.', 'नमूना गाइड, किसी तकनीशियन ने नहीं जाँची। सावधानी से इस्तेमाल करें।'],
+  buyer_authorised: ['Recycler (sample, not a real company)', 'रीसायकलर (नमूना, असली कंपनी नहीं)'],
 }

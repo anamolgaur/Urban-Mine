@@ -2,7 +2,6 @@ import { NavLink, Route, Routes, useNavigate } from 'react-router-dom'
 import { useLang } from '../../lib/i18n.tsx'
 import { useSession } from '../../lib/session.tsx'
 import { LangToggle, Btn } from '../../components/ui.tsx'
-import Icon from '../../components/Icon.tsx'
 import LotReview, { LotDetail } from './LotReview.tsx'
 import { Workers, Recyclers } from './People.tsx'
 import RateTable from './RateTable.tsx'
@@ -32,14 +31,17 @@ export default function Auditor() {
   return (
     <div className="min-h-dvh bg-paper">
       <header className="border-b border-hair bg-paper">
-        <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
-          <span className="inline-flex h-8 w-8 items-center justify-center bg-ink"><Icon name="lots" size={18} className="text-amber" /></span>
-          <h1 className="flex-1 text-xl font-bold">{t('auditor_title')}</h1>
-          <Btn full={false} variant="secondary" icon="download" onClick={() => exportCsv().catch(() => alert('Export failed'))}>{t('export_csv')}</Btn>
-          <LangToggle />
-          {authEnabled
-            ? <Btn full={false} variant="secondary" icon="lock" onClick={signOut}>{t('sign_out')}</Btn>
-            : <Btn full={false} variant="secondary" icon="swap" className="hidden sm:inline-flex" onClick={() => { loginAs('u-worker-1'); nav('/') }}>{t('back_to_worker')}</Btn>}
+        {/* phones: title + language on one row, actions on the next; wide screens: one row */}
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
+          <img src="/icon-192.png" alt="" width={32} height={32} className="h-8 w-8 shrink-0 rounded-lg" />
+          <h1 className="min-w-0 flex-1 truncate text-xl font-bold">{t('auditor_title')}</h1>
+          <div className="sm:order-last"><LangToggle /></div>
+          <div className="flex w-full gap-2 sm:w-auto">
+            <Btn full={false} variant="secondary" icon="download" onClick={() => exportCsv().catch(() => alert('Export failed'))}>{t('export_csv')}</Btn>
+            {authEnabled
+              ? <Btn full={false} variant="secondary" icon="lock" onClick={signOut}>{t('sign_out')}</Btn>
+              : <Btn full={false} variant="secondary" icon="swap" onClick={() => { loginAs('u-worker-1'); nav('/') }}>{t('back_to_worker')}</Btn>}
+          </div>
         </div>
         <nav aria-label={t('auditor_title')} className="mx-auto flex max-w-6xl gap-1 overflow-x-auto px-4">
           {NAV.map(([to, key, end]) => (

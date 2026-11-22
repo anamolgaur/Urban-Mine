@@ -23,5 +23,3 @@ dist-ssr
 *.sln
 *.sw?
 
-# copied from node_modules at build time
-public/ort

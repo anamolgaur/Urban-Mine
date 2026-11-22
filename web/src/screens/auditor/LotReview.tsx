@@ -49,7 +49,7 @@ export default function LotReview() {
 
       {rows.length === 0 ? <div className="mt-3"><EmptyState art="shield" title={t('no_findings')} /></div> : (
         <div className="mt-3 overflow-x-auto rounded-2xl border border-hair bg-white">
-          <table className="w-full min-w-[860px] text-left text-base">
+          <table className="cards-sm w-full min-w-[860px] text-left text-base">
             <thead>
               <tr className="border-b border-hair text-sm">
                 {['col_lot', 'col_worker', 'col_items', 'col_weight', 'col_safety', 'col_flags', 'col_status', 'col_chain'].map((c) => <th key={c} className="px-3 py-2 font-semibold">{t(c)}</th>)}

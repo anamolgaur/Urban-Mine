@@ -1,3 +1,4 @@
+import GetApp from '../../components/GetApp.tsx'
 import { useState, type FormEvent } from 'react'
 import { useLang } from '../../lib/i18n.tsx'
 import { supabase } from '../../lib/supabase.ts'
@@ -115,6 +116,7 @@ export default function Login() {
 
         <p className="mt-5 flex gap-2 text-sm leading-snug text-mute"><Icon name="lock" size={18} className="mt-0.5 shrink-0" />{t('login_privacy')}</p>
         <p className="mt-2 flex gap-2 text-sm leading-snug text-mute"><Icon name="info" size={18} className="mt-0.5 shrink-0" />{t('stay_signed_in')}</p>
+        <div className="mt-8"><GetApp compact /></div>
       </main>
     </div>
   )

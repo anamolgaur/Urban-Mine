@@ -1,0 +1,32 @@
+// Urban Mine for Android: a Trusted Web Activity. It opens the live web app full screen (no browser bar),
+// so every push to Render updates the app too. Phones without Chrome fall back to a built-in WebView.
+plugins { id 'com.android.application' }
+
+def siteHost = 'urban-mine-api.onrender.com'
+
+android {
+    namespace 'com.urbanmine.app'
+    compileSdk 35
+    defaultConfig {
+        applicationId 'com.urbanmine.app'
+        minSdk 21
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+        manifestPlaceholders = [host: siteHost, url: "https://${siteHost}/"]
+        resValue 'string', 'asset_statements', """[{"relation":["delegate_permission/common.handle_all_urls"],"target":{"namespace":"web","site":"https://${siteHost}"}}]"""
+    }
+    signingConfigs {
+        release {
+            // the signing key is kept OUT of the repo: pass its location and password as environment variables
+            storeFile file(System.getenv('UM_KEYSTORE') ?: 'missing.keystore')
+            storePassword System.getenv('UM_KEYSTORE_PASSWORD')
+            keyAlias 'urbanmine'
+            keyPassword System.getenv('UM_KEYSTORE_PASSWORD')
+        }
+    }
+    buildTypes { release { minifyEnabled false; signingConfig signingConfigs.release } }
+    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
+}
+
+dependencies { implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0' }

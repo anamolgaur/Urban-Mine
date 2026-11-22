@@ -28,6 +28,19 @@ export default function Result() {
   const resaleQ = flow.works && (flow.resaleId || flow.customPrice) ? `&works=true&condition=${flow.wear}${flow.resaleId ? `&resaleId=${flow.resaleId}` : `&custom=${flow.customPrice}`}` : ''
   const est = useApi<Estimate>(me && q && flow.works !== null ? `/api/estimate?${q}${flow.condition ? `&grade=${flow.condition.grade}` : ''}${resaleQ}` : null)
   const resale = useApi<ResaleModel[]>(flow.type && flow.works ? `/api/resale?type=${flow.type}` : null)
+  // phone model from how it looks (on-device). Only offered for phones; picked for you only when fairly sure and no label text matched.
+  const looks = flow.type === 'phone' ? (flow.looks ?? []).filter((l) => (resale.data ?? []).some((m) => m.id === l.id)) : []
+  const lookTop = looks.filter((l) => l.p >= 0.08).slice(0, 3)
+  const lookPick = looks[0] && looks[0].p >= 0.5 ? looks[0] : null
+  const lookBrand = looks.length ? (() => { const by: Record<string, number> = {}; for (const l of flow.looks ?? []) by[l.brand] = (by[l.brand] ?? 0) + l.p; return Object.entries(by).sort((a, b) => b[1] - a[1])[0]?.[0] })() : undefined
+  useEffect(() => { // the model list arrived after "yes, it works": apply the best guess then
+    if (flow.works && !flow.resaleId && !flow.customPrice && resale.data) {
+      const id = flow.scan?.resale?.id ?? lookPick?.id
+      if (id) patch({ resaleId: id })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flow.works, resale.data])
+  const nameOf = (id: string) => { const m = (resale.data ?? []).find((r) => r.id === id); return m ? `${m.brand} ${m.model}` : id }
   const [search, setSearch] = useState('')
   const [ownPrice, setOwnPrice] = useState('')
   const dec = useApi<RepairComparison>(me && q && flow.works !== null ? `/api/repair/decision?${q}&works=${flow.works}` : null)
@@ -62,7 +75,7 @@ export default function Result() {
           <p className="mb-2 text-lg font-bold">{t('works_q')}</p>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('works_q')}>
             {[true, false].map((v) => (
-              <button key={String(v)} role="radio" aria-checked={flow.works === v} onClick={() => patch({ works: v, ...(v ? (flow.scan?.resale && !flow.resaleId && !flow.customPrice ? { resaleId: flow.scan.resale.id } : {}) : { resaleId: null, customPrice: null }) })}
+              <button key={String(v)} role="radio" aria-checked={flow.works === v} onClick={() => patch({ works: v, ...(v ? (!flow.resaleId && !flow.customPrice ? (flow.scan?.resale ? { resaleId: flow.scan.resale.id } : lookPick ? { resaleId: lookPick.id } : {}) : {}) : { resaleId: null, customPrice: null }) })}
                 className={`min-h-14 rounded-2xl border border-hair px-3 text-base font-semibold ${flow.works === v ? 'bg-brand text-onbrand' : 'bg-white'}`}>
                 {flow.works === v && <Icon name="check" size={16} className="mr-1 inline" />}{v ? t('yes_works') : t('no_dead')}
               </button>
@@ -77,9 +90,28 @@ export default function Result() {
             {flow.scan?.resale && flow.resaleId === flow.scan.resale.id && (
               <div className="mt-2"><Banner tone="ok" icon="check">{t('model_from_photo', { model: `${flow.scan.resale.brand} ${flow.scan.resale.model}` })}</Banner></div>
             )}
+            {!flow.scan?.resale && lookPick && flow.resaleId === lookPick.id && (
+              <div className="mt-2"><Banner icon="info">{t('model_from_looks', { model: nameOf(lookPick.id) })}</Banner></div>
+            )}
+            {/* the likeliest models from how the phone looks: one tap to pick */}
+            {lookTop.length > 0 && (
+              <div className="mt-3">
+                <p className="text-sm font-semibold text-mute">{t('looks_like')}</p>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {lookTop.map((m) => (
+                    <button key={m.id} onClick={() => patch({ resaleId: m.id, customPrice: null })} aria-pressed={flow.resaleId === m.id}
+                      className={`min-h-11 rounded-full border px-3 text-sm font-semibold ${flow.resaleId === m.id ? 'border-brand bg-brand text-onbrand' : 'border-hair bg-white'}`}>
+                      {nameOf(m.id)} <span className="num font-normal opacity-75">{Math.round(m.p * 100)}%</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
             <input className={`${inputCls} mt-2`} value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('model_search')} aria-label={t('model_search')} />
             <ul className="mt-2 max-h-72 overflow-y-auto">
-              {(resale.data ?? []).filter((m) => `${m.brand} ${m.model}`.toLowerCase().includes(search.trim().toLowerCase())).map((m) => (
+              {(resale.data ?? []).filter((m) => `${m.brand} ${m.model}`.toLowerCase().includes(search.trim().toLowerCase()))
+                .sort((a, b) => Number(b.brand === lookBrand) - Number(a.brand === lookBrand)) // the brand it looks like first
+                .map((m) => (
                 <li key={m.id}>
                   <button onClick={() => patch({ resaleId: m.id, customPrice: null })} aria-pressed={flow.resaleId === m.id}
                     className={`flex min-h-12 w-full items-center justify-between gap-2 border-b border-hair px-2 text-left text-base ${flow.resaleId === m.id ? 'bg-gold-soft font-bold' : ''}`}>

@@ -16,7 +16,7 @@
   --color-bad-soft: #FFF1EF;
   --color-onbrand: #FFFFFF;
   --color-white: #FFFFFF;
-  --font-sans: 'Hind', 'Noto Sans Devanagari', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Gujarati', system-ui, sans-serif;
+  --font-sans: 'Hind', 'Noto Sans Bengali', 'Noto Sans Tamil', 'Noto Sans Telugu', 'Noto Sans Gujarati', system-ui, sans-serif;
   --font-cond: var(--font-sans);
   --font-mono: var(--font-sans);
   --shadow-card: 0 1px 2px rgb(31 36 33 / 0.05), 0 4px 14px -6px rgb(31 36 33 / 0.10);
@@ -53,3 +53,22 @@
 .screen-enter { animation: um-enter 0.2s ease-out both; }
 .num { font-variant-numeric: tabular-nums; }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* Phones: wide tables become one card per row. The column name is shown above each value (filled in by lib/tableCards.ts). */
+@media (max-width: 639px) {
+  table.cards-sm { display: block; min-width: 0 !important; }
+  table.cards-sm thead { display: none; }
+  table.cards-sm tbody { display: block; }
+  table.cards-sm tr { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; padding: 0.875rem 0.75rem; }
+  table.cards-sm td { display: block; padding: 0 !important; text-align: left !important; min-width: 0; overflow-wrap: anywhere; }
+  table.cards-sm td:first-child { grid-column: 1 / -1; }
+  table.cards-sm td[data-label]:not(:first-child)::before { content: attr(data-label); display: block; font-size: 0.8125rem; font-weight: 400; color: var(--color-mute); }
+  table.cards-sm td:empty, table.cards-sm td[data-label='']::before { display: none; }
+}
+
+/* Installed app / phones with a gesture bar: keep fixed bottom bars and the page above it. */
+.fixed.bottom-0 { padding-bottom: max(0.75rem, env(safe-area-inset-bottom)); }
+nav.fixed.bottom-0 { padding-bottom: env(safe-area-inset-bottom); }
+@media (max-width: 639px) {
+  table.cards-sm td * { max-width: 100%; white-space: normal; flex-shrink: 1; }
+}

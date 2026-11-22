@@ -59,6 +59,7 @@ export default function Scan() {
     recognise(photos).then((g) => {
       if (gone || !g) return
       setGuess(g)
+      patch({ looks: g.looks })
       // sure enough, and not a screen (flat or tube is asked): pre-select it
       if (!picked && g.confidence >= 0.6 && g.best !== 'other' && g.best !== 'screen') patch({ hint: g.best })
     }).catch(() => {}).finally(() => { if (!gone) setLooking(false) })
@@ -113,7 +114,7 @@ export default function Scan() {
 
   return (
     <Screen title={t('scan_title')} back="/" tabs={false}>
-      <div className="pb-24">
+      <div className="pb-44">
         <Rail items={['rail_photos', 'rail_check', 'rail_confirm', 'rail_price'].map((k, i) => ({ label: t(k), state: i === 0 ? 'now' : 'todo' }))} />
 
         <H2>{t('take_photos')}</H2>

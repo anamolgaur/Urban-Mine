@@ -7,11 +7,14 @@
     "dev": "vite",
     "build": "tsc -b && vite build && node scripts/precompress.mjs",
     "lint": "oxlint",
-    "preview": "vite preview",
-    "predev": "node scripts/copy-ort.mjs",
-    "prebuild": "node scripts/copy-ort.mjs"
+    "preview": "vite preview"
   },
   "dependencies": {
+    "@fontsource/hind": "^5.3.0",
+    "@fontsource/noto-sans-bengali": "^5.3.0",
+    "@fontsource/noto-sans-gujarati": "^5.3.0",
+    "@fontsource/noto-sans-tamil": "^5.3.0",
+    "@fontsource/noto-sans-telugu": "^5.3.0",
     "@supabase/supabase-js": "^2.119.2",
     "onnxruntime-web": "^1.31.1",
     "react": "^19.3.1",

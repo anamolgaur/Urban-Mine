@@ -1,3 +1,4 @@
+import GetApp from '../../components/GetApp.tsx'
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLang, LANGS } from '../../lib/i18n.tsx'
@@ -66,6 +67,8 @@ export default function Profile() {
         <KV k={t('identity')} v={<Tag tone="bad">{t('simulated')}</Tag>} />
         {me.user.role !== 'worker' && me.user.role !== 'auditor' && <KV k={t('approval_status')} v={<Tag tone={me.user.approval === 'approved' ? 'ok' : 'amber'}>{t('approval.' + me.user.approval)}</Tag>} />}
       </dl>
+
+      <div className="mt-5"><GetApp /></div>
 
       <H2>{t('language')}</H2>
       <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('language')}>
