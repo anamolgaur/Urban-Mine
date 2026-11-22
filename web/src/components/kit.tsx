@@ -12,7 +12,7 @@ export function StatusChip({ status }: { status: LotStatus }) {
   const [icon, tone] = cfg[status]
   const tones = { plain: 'bg-sunk text-ink', amber: 'bg-gold-soft text-gold-ink', ok: 'bg-brand-soft text-brand', bad: 'bg-bad/10 text-bad' }
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-semibold leading-snug ${tones[tone]}`}>
+    <span className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-sm font-semibold leading-snug ${tones[tone]}`}>
       <Icon name={icon} size={14} />{t('status.' + status)}
     </span>
   )

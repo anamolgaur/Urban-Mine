@@ -10,7 +10,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { ClaudeAssessor, UnavailableAssessor, type ConditionAssessor } from './condition.ts';
 
 /** Bump when seed data changes: an older LOCAL sample database is discarded and reseeded on start. A DATABASE_URL database is never wiped. */
-const SEED_VERSION = 9;
+const SEED_VERSION = 10;
 const DATABASE_URL = process.env.DATABASE_URL;
 const DATA_DIR = process.env.PGLITE_DIR ?? '.data/urban-mine';
 const PORT = Number(process.env.PORT ?? 3000);
@@ -44,8 +44,13 @@ if (DATABASE_URL) {
   db = await openDb({ url: DATABASE_URL });
   // "Seeded" is recorded in the database itself, not guessed from whether any user exists: an auditor created by hand on a fresh database must not stop the sample data loading.
   if (!(await getMeta(db, 'seed_version'))) {
-    if (process.env.SEED_DEMO === '1') { await fill(db); console.log('No sample data yet: loaded it (SEED_DEMO=1).'); }
-    else console.log('This database has no sample data. Start once with SEED_DEMO=1 to load it.');
+    if (process.env.SEED_DEMO === '1') { await fill(db); console.log('Empty database: loaded reference data and the demo people and lots (SEED_DEMO=1).'); }
+    else {
+      // Real use: prices, device lists, safety and repair guides only. No demo people or lots.
+      await seed(db, { reference: true });
+      await setMeta(db, 'seed_version', String(SEED_VERSION));
+      console.log('Empty database: loaded reference data (prices, devices, safety and repair guides).');
+    }
   }
 } else {
   // The local sample database can be left damaged when the dev server is killed abruptly (for example by a file-watch restart on Windows). It only holds SAMPLE data, so recreate it.
@@ -69,9 +74,9 @@ if (DATABASE_URL) {
 // Sign-in: Supabase Auth (phone OTP). The demo X-User-Id header is only accepted when explicitly enabled, or when no Supabase auth is configured outside production.
 const verifier = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? supabaseVerifier(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : undefined;
 const demoLogin = process.env.DEMO_LOGIN ? process.env.DEMO_LOGIN === '1' : !verifier && process.env.NODE_ENV !== 'production';
-console.log(verifier ? `Sign-in: Supabase phone OTP${demoLogin ? ' + DEMO LOGIN ENABLED' : ''}` : demoLogin ? 'Sign-in: DEMO LOGIN ONLY (set SUPABASE_URL and SUPABASE_ANON_KEY for real sign-in)' : 'WARNING: no sign-in configured, every request will be refused');
-if (process.env.NODE_ENV === 'production' && !process.env.CORS_ORIGIN) console.warn('WARNING: CORS_ORIGIN is not set, so ANY website can call this API from a browser. Set it to your web app address.');
-const app = await buildApp(db, { webDir: process.env.WEB_DIR || resolve('web/dist'), photos, assessor, visionDailyLimit: Number(process.env.VISION_DAILY_LIMIT) || undefined, verifier, demoLogin, corsOrigin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean) });
+console.log(verifier ? `Sign-in: real accounts (phone or email + password)${demoLogin ? ' + DEMO LOGIN ENABLED' : ''}` : demoLogin ? 'Sign-in: DEMO LOGIN ONLY (set SUPABASE_URL and SUPABASE_ANON_KEY for real sign-in)' : 'WARNING: no sign-in configured, every request will be refused');
+// In production without CORS_ORIGIN the app and API share one address, so other websites are refused.
+const app = await buildApp(db, { webDir: process.env.WEB_DIR || resolve('web/dist'), photos, assessor, visionDailyLimit: Number(process.env.VISION_DAILY_LIMIT) || undefined, verifier, demoLogin, corsOrigin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean), sameOriginOnly: process.env.NODE_ENV === 'production' });
 await app.listen({ port: PORT, host: '0.0.0.0' });
 console.log(`Urban Mine API on http://localhost:${PORT} (ALL DATA IS SAMPLE, ${DATABASE_URL ? 'Postgres via DATABASE_URL' : 'local PGlite at ' + DATA_DIR})`);
 

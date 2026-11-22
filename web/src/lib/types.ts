@@ -39,6 +39,9 @@ export type FairVerdict = 'below' | 'within' | 'above'
 export type Offer = { id: string; recycler_name: string; amount: number; pickup_terms: string; expires_at: string; seconds_left: number; fair?: { verdict: FairVerdict; low: number; high: number } | null }
 export type Guide = { id: string; fault: L; device_type: string; difficulty: 'easy' | 'medium' | 'hard'; tools: L[]; steps: L[] }
 export type Listing = { id: string; name: string; skills: string[]; area: string; start_price: number; hours: string; verified_count: number }
-export type Job = { id: string; before_photo: string; after_photo: string | null; status: 'in_progress' | 'completed'; note: string | null; created_at: string | null; completed_at: string | null }
+export type Diary = { problems?: string; parts?: string; minutes?: number; outcome?: 'fixed' | 'partly' | 'not_fixed'; customer_note?: string }
+export type Job = { id: string; before_photo: string; after_photo: string | null; status: 'in_progress' | 'completed'; note: string | null; created_at: string | null; completed_at: string | null
+  device_type: string | null; guide_id: string | null; gear_checked: string[]; steps_done: number[]; during_photos: string[]; diary: Diary }
+export type Gear = { id: string; required: boolean; en: string; hi: string }
 
 export type ResaleModel = { id: string; type: string; brand: string; model: string; good: number; source: string }

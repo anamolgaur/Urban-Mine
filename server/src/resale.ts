@@ -40,7 +40,7 @@ export const isResaleCondition = (c: unknown): c is ResaleCondition => c === 'go
 export function resaleRange(opts: { resaleId?: string | null; condition?: unknown; custom?: number | null }) {
   const cond: ResaleCondition = isResaleCondition(opts.condition) ? opts.condition : 'good';
   const m = opts.resaleId ? RESALE.find((r) => r.id === opts.resaleId) : undefined;
-  const base = m ? m.good * CONDITION_SHARE[cond] : opts.custom && opts.custom > 0 ? opts.custom : null;
+  const base = m ? m.good * CONDITION_SHARE[cond] : opts.custom && opts.custom > 0 && opts.custom <= 1_000_000 ? opts.custom : null;
   if (base === null) return null;
   const spread = m ? 0.15 : 0.25;
   const r = (n: number) => Math.round(n);

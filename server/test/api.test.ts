@@ -119,9 +119,21 @@ test('repair listing flow for a repairer', async () => {
   const r = as('u-repairer-1');
   assert.equal((await app.inject({ method: 'POST', url: '/api/repair/listings', headers: r, payload: { skills: [], area: '', start_price: 0, hours: '' } })).statusCode, 400);
   assert.equal((await app.inject({ method: 'POST', url: '/api/repair/listings', headers: r, payload: { skills: ['laptop'], area: 'SAMPLE', start_price: 200, hours: '9-5' } })).statusCode, 200);
-  const job = (await app.inject({ method: 'POST', url: '/api/repair/jobs', headers: r, payload: { before_photo: 'b' } })).json();
+  const job = (await app.inject({ method: 'POST', url: '/api/repair/jobs', headers: r, payload: { before_photo: 'b', gear: ['glasses', 'gloves', 'unplugged', 'battery_tray'] } })).json();
   assert.equal((await app.inject({ method: 'POST', url: `/api/repair/jobs/${job.id}/complete`, headers: r, payload: { after_photo: 'a' } })).statusCode, 200);
   const list = (await app.inject({ url: '/api/repair/listings' })).json();
   assert.equal(list[0].verified_count, 3);
   await app.close();
+});
+
+test('responses carry browser safety headers, and unexpected errors hide their details', async () => {
+  const { buildApp } = await import('../src/app.ts');
+  const { freshDb } = await import('./helpers.ts');
+  const app = await buildApp(await freshDb(), { ocr: { read: async () => '' } });
+  const r = await app.inject({ url: '/api/health' });
+  assert.equal(r.headers['x-content-type-options'], 'nosniff');
+  assert.equal(r.headers['x-frame-options'], 'DENY');
+  // a database-style failure: ask for a lot with an id the database cannot even compare
+  const boom = await app.inject({ url: '/api/lots/%00', headers: { 'x-user-id': 'u-worker-1' } });
+  assert.doesNotMatch(boom.body, /relation|syntax|column|invalid byte/i);
 });

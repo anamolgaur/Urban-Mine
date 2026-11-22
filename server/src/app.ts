@@ -1,4 +1,6 @@
 import Fastify, { type FastifyRequest } from 'fastify';
+import rateLimit from '@fastify/rate-limit';
+import { USERS as DEMO_USERS } from './seed/users.ts';
 import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { existsSync } from 'node:fs';
@@ -16,14 +18,14 @@ import { createLot } from './lots.ts';
 import { recordFlags } from './fraud.ts';
 import { listLot, placeBid, offersFor, bidsFor, acceptBid, rejectBid, holdLot, releaseLot, requestRecheck } from './market.ts';
 import { receiptData, renderReceiptPdf } from './receipt.ts';
-import { repairComparison, listGuides, listListings, upsertListing, createJob, completeJob } from './repair.ts';
+import { repairComparison, listGuides, listListings, upsertListing, createJob, completeJob, updateJob, jobView, GEAR } from './repair.ts';
 import { savePhoto, parseDataUrl, sha256 } from './photos.ts';
 import { UnavailableAssessor, CONDITION_FACTORS, isGrade, fairVerdict, type ConditionAssessor } from './condition.ts';
 import { LocalPhotoStore, sniffImage, type PhotoStore } from './photostore.ts';
 import { lotView, lotsFor, chainStatus, chainDetail } from './views.ts';
 
 type Row = Record<string, any>;
-export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string; /** Where photos live. Defaults to local disk in uploadsDir. */ photos?: PhotoStore; /** Photo-based condition grading. Defaults to none (the photo check says it is not available). */ assessor?: ConditionAssessor; /** Photo checks per person per day. */ visionDailyLimit?: number; /** A built web app (web/dist) to serve from this same server, so one service hosts both. Ignored if it has no index.html. */ webDir?: string; /** Checks sign-in tokens (Supabase). */ verifier?: TokenVerifier; /** Accept the X-User-Id header as identity (demo and tests only). Defaults to on when there is no verifier. */ demoLogin?: boolean; /** Allowed web origins (CORS). Omit to allow any origin (dev). */ corsOrigin?: string[] };
+export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string; /** Where photos live. Defaults to local disk in uploadsDir. */ photos?: PhotoStore; /** Photo-based condition grading. Defaults to none (the photo check says it is not available). */ assessor?: ConditionAssessor; /** Photo checks per person per day. */ visionDailyLimit?: number; /** A built web app (web/dist) to serve from this same server, so one service hosts both. Ignored if it has no index.html. */ webDir?: string; /** Checks sign-in tokens (Supabase). */ verifier?: TokenVerifier; /** Accept the X-User-Id header as identity (demo and tests only). Defaults to on when there is no verifier. */ demoLogin?: boolean; /** Allowed web origins (CORS). Omit to allow any origin (dev). */ corsOrigin?: string[]; /** Refuse cross-site browser calls when no corsOrigin is given (production, one service). */ sameOriginOnly?: boolean; /** Requests per minute per address. */ rateLimit?: number };
 
 const E = (statusCode: number, message: string, code?: string) => Object.assign(new Error(message), { statusCode, appCode: code });
 const LANGS = ['hi', 'en', 'bn', 'ta', 'te', 'mr', 'gu'];
@@ -38,9 +40,32 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   const realOcr = deps.ocr ?? new TesseractOcr();
 
   const app = Fastify({ bodyLimit: 25 * 1024 * 1024 });
-  await app.register(cors, { origin: deps.corsOrigin?.length ? deps.corsOrigin : true });
-  app.setErrorHandler((err: any, _req, reply) => {
-    reply.code(err.statusCode ?? 400).send({ error: err.message, ...(err.appCode ? { code: err.appCode } : {}) });
+  await app.register(cors, { origin: deps.corsOrigin?.length ? deps.corsOrigin : (deps.sameOriginOnly ? false : true) });
+  // Limit requests per address, so one person or script cannot flood the server. Generous for real use.
+  await app.register(rateLimit, { max: deps.rateLimit ?? 600, timeWindow: '1 minute', allowList: (req) => req.url === '/api/health' });
+  // Browser safety headers on every response.
+  app.addHook('onSend', async (_req, reply, payload) => {
+    reply.header('x-content-type-options', 'nosniff');
+    reply.header('x-frame-options', 'DENY');
+    reply.header('referrer-policy', 'strict-origin-when-cross-origin');
+    reply.header('permissions-policy', 'camera=(self), geolocation=(self), microphone=()');
+    if (process.env.NODE_ENV === 'production') reply.header('strict-transport-security', 'max-age=31536000');
+    return payload;
+  });
+  // Errors we raise on purpose carry a status and a plain message. Anything else is unexpected: log it and show a
+  // general message, so database or code details never reach the user.
+  app.setErrorHandler((err: any, req, reply) => {
+    if (err.statusCode && err.statusCode < 500 && err.message) {
+      return reply.code(err.statusCode).send({ error: err.message, ...(err.appCode ? { code: err.appCode } : {}) });
+    }
+    if (err.statusCode === 503 || err.appCode) return reply.code(err.statusCode ?? 500).send({ error: err.message, ...(err.appCode ? { code: err.appCode } : {}) });
+    // database errors carry a SQLSTATE code or a severity; never show those
+    const fromDb = err.severity !== undefined || (typeof err.code === 'string' && /^[0-9A-Z]{5}$/.test(err.code)) || /sql|relation|column|syntax|ECONN|encoding|duplicate key|violates/i.test(err.message ?? '')
+    if (!err.statusCode && err.message && !fromDb) {
+      return reply.code(400).send({ error: err.message });
+    }
+    req.log.error(err);
+    return reply.code(500).send({ error: 'Something went wrong. Please try again.' });
   });
 
   /** With no verifier configured the demo header is the only identity there is; with one, it is off unless demoLogin is set. */
@@ -50,11 +75,14 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   const userForIdentity = async (id: Identity): Promise<Row | null> => {
     const u = await db.prepare('SELECT * FROM app_user WHERE auth_id = ?').get(id.sub) as Row | undefined;
     if (u) return u;
+    // Only accounts made on purpose (e.g. with `npm run auditor`) can be claimed; the demo people never can.
+    const notDemo = `AND id NOT IN (${DEMO_USERS.map(() => '?').join(',')})`;
+    const demoIds = DEMO_USERS.map((u) => u.id);
     if (id.phone) {
-      const byPhone = await db.prepare('UPDATE app_user SET auth_id = ? WHERE phone = ? AND auth_id IS NULL RETURNING *').get(id.sub, id.phone) as Row | undefined;
+      const byPhone = await db.prepare(`UPDATE app_user SET auth_id = ? WHERE phone = ? AND auth_id IS NULL ${notDemo} RETURNING *`).get(id.sub, id.phone, ...demoIds) as Row | undefined;
       if (byPhone) return byPhone;
     }
-    if (id.email) return (await db.prepare('UPDATE app_user SET auth_id = ? WHERE email = ? AND auth_id IS NULL RETURNING *').get(id.sub, id.email) as Row | undefined) ?? null;
+    if (id.email) return (await db.prepare(`UPDATE app_user SET auth_id = ? WHERE email = ? AND auth_id IS NULL ${notDemo} RETURNING *`).get(id.sub, id.email, ...demoIds) as Row | undefined) ?? null;
     return null;
   };
 
@@ -338,7 +366,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     // the lot record is permanent: keep only the fields we know
     b.items = b.items.map((i: any) => ({ ...(i.model_id ? { model_id: String(i.model_id) } : {}), type: i.type, ...(i.qty !== undefined ? { qty: i.qty } : {}), ...(i.grade ? { grade: i.grade, grade_source: i.grade_source === 'worker' ? 'worker' : 'ai' } : {}),
       ...(i.works === true ? { works: true, condition: ['good', 'fair', 'poor'].includes(i.condition) ? i.condition : 'good',
-        ...(i.resale_id ? { resale_id: String(i.resale_id).slice(0, 40) } : {}), ...(Number(i.custom_price) > 0 ? { custom_price: Math.round(Number(i.custom_price)) } : {}) } : {}) }));
+        ...(i.resale_id ? { resale_id: String(i.resale_id).slice(0, 40) } : {}), ...(Number(i.custom_price) > 0 && Number(i.custom_price) <= 1_000_000 ? { custom_price: Math.round(Number(i.custom_price)) } : {}) } : {}) }));
     if (!(b.weight_kg > 0)) throw E(400, 'weight_kg must be positive');
     if (!(b.steps_total >= 0) || !(b.steps_done >= 0) || b.steps_done > b.steps_total) throw E(400, 'invalid step counts');
     if (!Array.isArray(b.photo_hashes) || !b.photo_hashes.every((h: string) => HASH.test(h))) throw E(400, 'photo_hashes must be sha-256 hashes');
@@ -452,19 +480,36 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const u = await actor(req, ['repairer']);
     const l = await db.prepare('SELECT * FROM repairer_listing WHERE user_id = ?').get(u.id) as Row | undefined;
     if (!l) return { listing: null, jobs: [] };
-    return { listing: { ...l, skills: JSON.parse(l.skills) }, jobs: await db.prepare('SELECT * FROM repair_job WHERE listing_id = ? ORDER BY seq DESC').all(l.id) };
+    return { listing: { ...l, skills: JSON.parse(l.skills) }, jobs: ((await db.prepare('SELECT * FROM repair_job WHERE listing_id = ? ORDER BY seq DESC').all(l.id)) as Row[]).map(jobView) };
   });
   app.post('/api/repair/jobs', async (req) => {
     const u = await actor(req, ['repairer']);
     const l = await db.prepare('SELECT id FROM repairer_listing WHERE user_id = ?').get(u.id) as Row | undefined;
     if (!l) throw E(400, 'Create your listing first');
-    return { id: await createJob(db, l.id, (req.body as any)?.before_photo, String((req.body as any)?.note ?? '')) };
+    const b = (req.body ?? {}) as any;
+    return { id: await createJob(db, l.id, b.before_photo, String(b.note ?? ''), new Date(), {
+      device_type: typeof b.device_type === 'string' ? b.device_type.slice(0, 30) : undefined,
+      guide_id: typeof b.guide_id === 'string' ? b.guide_id.slice(0, 60) : undefined,
+      gear: Array.isArray(b.gear) ? b.gear.map(String) : [], requireGear: true }) };
+  });
+  app.get('/api/repair/gear', async () => GEAR);
+  const ownJob = async (req: FastifyRequest, id: string) => {
+    const u = await actor(req, ['repairer']);
+    const j = await db.prepare('SELECT l.user_id FROM repair_job j JOIN repairer_listing l ON l.id = j.listing_id WHERE j.id = ?').get(id) as Row | undefined;
+    if (!j || j.user_id !== u.id) throw E(404, 'Job not found');
+  };
+  app.post<{ Params: { id: string } }>('/api/repair/jobs/:id/progress', async (req) => {
+    await ownJob(req, req.params.id);
+    const b = (req.body ?? {}) as any;
+    await updateJob(db, req.params.id, { during_photo: typeof b.during_photo === 'string' && HASH.test(b.during_photo) ? b.during_photo : undefined,
+      step: b.step !== undefined ? Number(b.step) : undefined, done: b.done, diary: b.diary && typeof b.diary === 'object' ? b.diary : undefined });
+    return { ok: true };
   });
   app.post<{ Params: { id: string } }>('/api/repair/jobs/:id/complete', async (req) => {
     const u = await actor(req, ['repairer']);
     const j = await db.prepare('SELECT l.user_id FROM repair_job j JOIN repairer_listing l ON l.id = j.listing_id WHERE j.id = ?').get(req.params.id) as Row | undefined;
     if (!j || j.user_id !== u.id) throw E(404, 'Job not found');
-    await completeJob(db, req.params.id, (req.body as any)?.after_photo);
+    await completeJob(db, req.params.id, (req.body as any)?.after_photo, new Date(), (req.body as any)?.diary);
     return { ok: true };
   });
 

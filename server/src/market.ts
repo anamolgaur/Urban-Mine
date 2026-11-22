@@ -24,6 +24,7 @@ export async function placeBid(db: Db, p: { lotId: string; recyclerId: string; a
   const user = await db.prepare('SELECT role FROM app_user WHERE id = ?').get(p.recyclerId) as Row | undefined;
   if (user?.role !== 'recycler') throw new Error('Only recyclers can bid');
   if (!(p.amount > 0)) throw new Error('Bid amount must be positive');
+  if (p.amount > 10_000_000) throw new Error('Bid amount is too large');
   const id = randomUUID();
   const expires = new Date(now.getTime() + (p.minutes ?? 30) * 60000);
   await db.prepare('INSERT INTO bid VALUES (?,?,?,?,?,?,?)').run(id, p.lotId, p.recyclerId, p.amount, p.pickupTerms, iso(expires), 'open');

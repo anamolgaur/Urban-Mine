@@ -19,11 +19,13 @@ function localise(v: unknown, lang: Lang): unknown {
   return v;
 }
 
-/** Fill an empty database with SAMPLE data. Safe to call once per fresh db. */
-export async function seed(db: Db): Promise<void> {
+/** Fill an empty database: reference data always, plus the demo people unless `reference: true`. Safe to call once per fresh db. */
+export async function seed(db: Db, opts: { reference?: boolean } = {}): Promise<void> {
   await db.tx(async (t) => {
-    for (const w of WORKSHOPS) await t.prepare('INSERT INTO workshop VALUES (?,?,?,?,?)').run(w.id, w.name, w.address, w.lat, w.lng);
-    for (const u of USERS) await t.prepare('INSERT INTO app_user VALUES (?,?,?,?,?,?)').run(u.id, u.role, u.name, u.phone, u.language, u.workshop_id);
+    if (!opts.reference) {
+      for (const w of WORKSHOPS) await t.prepare('INSERT INTO workshop VALUES (?,?,?,?,?)').run(w.id, w.name, w.address, w.lat, w.lng);
+      for (const u of USERS) await t.prepare('INSERT INTO app_user VALUES (?,?,?,?,?,?)').run(u.id, u.role, u.name, u.phone, u.language, u.workshop_id);
+    }
     for (const m of MODELS)
       await t.prepare('INSERT INTO device_model VALUES (?,?,?,?,?,?,?,?)').run(m.id, m.type, m.brand, m.model, j(m.label_patterns), m.weight_kg, j(m.composition), m.repair_notes);
     const { rates, history } = seedRates();
@@ -36,7 +38,7 @@ export async function seed(db: Db): Promise<void> {
     for (const g of GUIDES)
       await t.prepare('INSERT INTO repair_guide VALUES (?,?,?,?,?,?)').run(
         g.id, j(g.fault), g.device_type, g.difficulty, j(g.tools), j(g.steps));
-    for (const l of REPAIRER_LISTINGS)
+    if (!opts.reference) for (const l of REPAIRER_LISTINGS)
       await t.prepare('INSERT INTO repairer_listing VALUES (?,?,?,?,?,?,?)').run(l.id, l.user_id, j(l.skills), l.area, l.start_price, l.hours, l.verified_count);
   });
 }

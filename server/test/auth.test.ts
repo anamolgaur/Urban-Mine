@@ -205,3 +205,10 @@ test('an email sign-in onboards, and a pre-made auditor attaches by email', asyn
   people['tok-boss'] = { sub: 'auth-e2', phone: null, email: 'boss@example.com' };
   assert.equal((await app.inject({ url: '/api/me', headers: bearer('tok-boss') })).json().user.role, 'auditor');
 });
+
+test('nobody can take over a demo account by signing up with its phone number', async () => {
+  const { app } = await setup();
+  people['tok-thief'] = { sub: 'auth-thief', phone: '+919000000031', email: null }; // the demo auditor's number
+  const me = (await app.inject({ url: '/api/me', headers: bearer('tok-thief') })).json();
+  assert.equal(me.user, null, 'gets a fresh account to set up, not the demo auditor');
+});

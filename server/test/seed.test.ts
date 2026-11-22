@@ -48,11 +48,23 @@ test('safety packs: Hindi and English, battery step needs photo, unreviewed, dra
 });
 
 test('all sample names and sources carry the SAMPLE label', async () => {
-  for (const u of (await rows('SELECT name FROM app_user'))) assert.match(u.name, /SAMPLE/);
+  for (const u of (await rows('SELECT name FROM app_user'))) assert.match(u.name, /\(demo\)/);
   for (const r of (await rows('SELECT source FROM rate'))) assert.match(r.source, /SAMPLE/);
   for (const m of (await rows('SELECT model FROM device_model'))) assert.match(m.model, /SAMPLE/);
 });
 
 test('rate history gives a yesterday value for every current rate', async () => {
   assert.equal((await rows('SELECT * FROM rate_history')).length, (await rows('SELECT * FROM rate')).length * 2);
+});
+
+test('a real-use database gets prices, devices and guides, but no demo people', async () => {
+  const { openDb } = await import('../src/db.ts');
+  const { seed } = await import('../src/seed.ts');
+  const db = await openDb();
+  await seed(db, { reference: true });
+  assert.equal((await db.prepare('SELECT COUNT(*)::int AS n FROM app_user').get() as { n: number }).n, 0);
+  assert.ok((await db.prepare('SELECT COUNT(*)::int AS n FROM rate').get() as { n: number }).n > 0);
+  assert.ok((await db.prepare('SELECT COUNT(*)::int AS n FROM device_model').get() as { n: number }).n > 0);
+  assert.ok((await db.prepare('SELECT COUNT(*)::int AS n FROM safety_pack').get() as { n: number }).n > 0);
+  await db.close();
 });

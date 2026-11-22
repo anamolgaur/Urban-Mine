@@ -84,7 +84,7 @@ export function Briefing() {
               ))}
             </ul>
             <div className="mt-4"><ListenButton text={`${pack.emergency}. ${pack.gear.join('. ')}`} /></div>
-            <p className="mt-3 flex items-center gap-2 text-sm text-mute"><Tag>{pack.version}</Tag>{t('steps_count', { n: pack.steps.length })}</p>
+            <p className="mt-3 flex items-center gap-2 text-sm text-mute">{t('steps_count', { n: pack.steps.length })}</p>
           </>
         )}
       </main>

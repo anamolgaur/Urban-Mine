@@ -33,7 +33,7 @@ function VisionConsent() {
 }
 
 export default function Profile() {
-  const { t, lang, setLang } = useLang()
+  const { t, lang, setLang, tech, setTech } = useLang()
   const { me, loginAs, reload, signOut } = useSession()
   const { reset } = useFlow()
   const nav = useNavigate()
@@ -53,7 +53,7 @@ export default function Profile() {
   return (
     <Screen title={t('profile_title')} back={false}>
       <div className="flex items-center gap-3 rounded-3xl bg-white shadow-card p-3">
-        <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center bg-ink text-3xl font-bold text-paper" aria-hidden>{me.user.name.replace('SAMPLE ', '').charAt(0)}</span>
+        <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand text-2xl font-bold text-onbrand" aria-hidden>{me.user.name.charAt(0)}</span>
         <div className="min-w-0">
           <p className="truncate text-lg font-bold leading-tight">{me.user.name}</p>
           <p className="mt-1 flex flex-wrap gap-1"><Tag>{t('role.' + me.user.role)}</Tag><Tag tone="amber">{t('sample')}</Tag></p>
@@ -68,14 +68,23 @@ export default function Profile() {
       </dl>
 
       <H2>{t('language')}</H2>
-      <div className="grid grid-cols-2" role="radiogroup" aria-label={t('language')}>
+      <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('language')}>
         {LANGS.map(({ code: k, label }) => (
           <button key={k} role="radio" aria-checked={lang === k} onClick={() => setLang(k)}
-            className={`min-h-12 border border-hair text-base font-semibold ${lang === k ? 'bg-brand text-onbrand' : 'bg-white'}`}>{lang === k && '✓ '}{label}</button>
+            className={`min-h-12 rounded-2xl border text-base font-semibold ${lang === k ? 'border-brand bg-brand text-onbrand' : 'border-hair bg-white'}`}>{lang === k && '✓ '}{label}</button>
         ))}
       </div>
 
       <H2>{t('help_access')}</H2>
+      {(
+        <label className="mb-5 flex min-h-14 cursor-pointer items-center justify-between gap-3 rounded-2xl border border-hair bg-white px-4 py-3">
+          <span>
+            <span className="block text-base font-semibold">{t('tech_toggle')}</span>
+            <span className="block text-sm text-mute">{t('tech_toggle_hint')}</span>
+          </span>
+          <input type="checkbox" role="switch" className="h-6 w-6 shrink-0 accent-[var(--color-brand)]" checked={tech} onChange={(e) => setTech(e.target.checked)} />
+        </label>
+      )}
       <p className="mb-2 text-base font-semibold">{t('theme_label')}</p>
       <div className="mb-5 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('theme_label')}>
         {(['dark', 'light'] as const).map((th) => (

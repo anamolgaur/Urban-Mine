@@ -2,41 +2,20 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useLang } from '../../lib/i18n.tsx'
 import { useApi } from '../../lib/useApi.ts'
-import { api } from '../../lib/api.ts'
-import { fileToDataUrl } from '../../lib/image.ts'
-import { inr, dateShort } from '../../lib/format.ts'
+import { inr } from '../../lib/format.ts'
 import type { Job, Listing } from '../../lib/types.ts'
-import { Screen, H2, Btn, Banner, Tag, SampleTag, ErrorNote, Field, inputCls } from '../../components/ui.tsx'
+import { Screen, H2, Btn, Banner, SampleTag, ErrorNote } from '../../components/ui.tsx'
 import { Stat, EmptyState, Skeleton } from '../../components/kit.tsx'
-import Photo from '../../components/Photo.tsx'
-import Icon from '../../components/Icon.tsx'
 import OfferServices from './OfferServices.tsx'
+import { StartJob, OpenJob, DoneJob } from './RepairJob.tsx'
 import { Fix, Nearby } from './Repair.tsx'
 
 type Mine = { listing: Listing | null; jobs: Job[] }
-
-async function uploadPhoto(f: File): Promise<string> {
-  return (await api<{ hash: string }>('/api/photos', { body: { dataUrl: await fileToDataUrl(f) } })).hash
-}
-
-function PhotoPair({ job }: { job: Job }) {
-  const { t } = useLang()
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      <figure><Photo hash={job.before_photo} /><figcaption className="mt-1 text-sm font-semibold">{t('before_photo')}</figcaption></figure>
-      <figure>
-        {job.after_photo ? <Photo hash={job.after_photo} /> : <div className="flex aspect-[4/3] items-center justify-center border border-dashed border-hair bg-sunk p-2 text-center text-sm font-semibold">{t('after_needed')}</div>}
-        <figcaption className="mt-1 text-sm font-semibold">{t('add_after')}</figcaption>
-      </figure>
-    </div>
-  )
-}
 
 /** Jobs tab: statistics, start a job with a before photo, finish it with an after photo, and the repair history. */
 export function RepairerJobs() {
   const { t } = useLang()
   const mine = useApi<Mine>('/api/repair/mine')
-  const [note, setNote] = useState('')
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const l = mine.data?.listing
@@ -70,47 +49,17 @@ export function RepairerJobs() {
           <div className="mt-3"><Banner icon="info">{t('repairer_note')}</Banner></div>
 
           <H2>{t('start_job')}</H2>
-          <Field label={t('job_note_label')}><input className={inputCls} value={note} maxLength={120} placeholder={t('job_note_ph')} onChange={(e) => setNote(e.target.value)} /></Field>
-          <label className="flex min-h-14 cursor-pointer items-center justify-center gap-2 border-2 border-brand bg-amber px-4 text-base font-bold focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-ink">
-            <input type="file" accept="image/*" capture="environment" className="sr-only" disabled={busy}
-              onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void run(async () => { await api('/api/repair/jobs', { body: { before_photo: await uploadPhoto(f), note } }); setNote('') }) }} />
-            <Icon name="camera" size={22} />{t('new_job_before')}
-          </label>
+          <StartJob busy={busy} run={run} />
           {err && <ErrorNote message={err} />}
 
           <H2>{t('in_progress_title')}</H2>
           {open.length === 0 ? <p className="py-3 text-base text-mute">{t('no_jobs')}</p> : (
-            <ul className="space-y-3">
-              {open.map((j) => (
-                <li key={j.id} className="rounded-3xl bg-white shadow-card p-3">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div><p className="text-lg font-bold leading-tight">{j.note || t('job_unnamed')}</p><p className="num text-sm text-mute">#{j.id.slice(0, 6)} · {j.created_at ? t('started', { date: dateShort(j.created_at) }) : ''}</p></div>
-                    <Tag tone="amber">{t('stat_in_progress')}</Tag>
-                  </div>
-                  <PhotoPair job={j} />
-                  <label className="mt-3 flex min-h-12 cursor-pointer items-center justify-center gap-2 border border-hair bg-ink px-4 text-base font-bold text-paper focus-within:outline focus-within:outline-[3px] focus-within:outline-offset-2 focus-within:outline-ink">
-                    <input type="file" accept="image/*" capture="environment" className="sr-only" disabled={busy}
-                      onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void run(async () => api(`/api/repair/jobs/${j.id}/complete`, { body: { after_photo: await uploadPhoto(f) } })) }} />
-                    <Icon name="camera" size={20} />{t('add_after')}
-                  </label>
-                </li>
-              ))}
-            </ul>
+            <ul className="space-y-4">{open.map((j) => <OpenJob key={j.id} job={j} busy={busy} run={run} />)}</ul>
           )}
 
           <H2>{t('history_title')}</H2>
           {done.length === 0 ? <p className="py-3 text-base text-mute">{t('no_history')}</p> : (
-            <ul className="space-y-3">
-              {done.map((j) => (
-                <li key={j.id} className="rounded-2xl border border-hair bg-white p-3">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <div><p className="text-base font-bold leading-tight">{j.note || t('job_unnamed')}</p><p className="num text-sm text-mute">{j.completed_at ? t('finished', { date: dateShort(j.completed_at) }) : ''}</p></div>
-                    <Tag tone="ok">✓ {t('job_completed')}</Tag>
-                  </div>
-                  <PhotoPair job={j} />
-                </li>
-              ))}
-            </ul>
+            <ul className="space-y-3">{done.map((j) => <DoneJob key={j.id} job={j} />)}</ul>
           )}
         </>
       )}

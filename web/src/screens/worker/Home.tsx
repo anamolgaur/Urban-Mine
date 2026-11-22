@@ -36,7 +36,7 @@ export default function Home() {
   const active = list.filter((l) => l.status !== 'sold')
   const earned = list.reduce((s, l) => s + (l.status === 'sold' ? (l.sale_amount ?? 0) : 0), 0)
   const next = pickNext(list)
-  const name = me?.user.name.replace('SAMPLE ', '') ?? ''
+  const name = (me?.user.name ?? '').replace(' (demo)', '').split(' ')[0]
 
   const activity = list.slice(0, 4).map((l) => ({
     lot: l,
