@@ -65,17 +65,20 @@ export default function Home() {
         <Icon name="chevR" size={28} />
       </button>
 
+      {/* "What to do next" only when it adds something: with no lots yet, the big Scan button above already says it */}
+      {next.key !== 'none' && (
       <section className="mt-4 rounded-3xl bg-gold-soft p-4" aria-label={t('next_title')}>
         <p className="text-sm font-medium text-mute">{t('next_title')}</p>
         <p className="mt-0.5 text-lg font-bold leading-snug">{t(`next_${next.key}_t`)}</p>
         <p className="mt-1 text-base leading-snug text-mute">{t(`next_${next.key}_b`)}</p>
         <div className="mt-3">
-          <button onClick={() => nav(next.key === 'none' ? '/scan' : next.key === 'sold' ? `/receipt/${next.lot!.id}` : `/offers/${next.lot!.id}`)}
+          <button onClick={() => nav(next.key === 'sold' ? `/receipt/${next.lot!.id}` : `/offers/${next.lot!.id}`)}
             className="inline-flex min-h-12 items-center gap-2 rounded-2xl bg-ink px-5 font-semibold text-paper">
-            {t(next.key === 'none' ? 'scan_cta' : next.key === 'sold' ? 'view_receipt' : 'open_lot')}<Icon name="chevR" size={18} />
+            {t(next.key === 'sold' ? 'view_receipt' : 'open_lot')}<Icon name="chevR" size={18} />
           </button>
         </div>
       </section>
+      )}
 
       <H2 right={<SampleTag />}>{t('earn_title')}</H2>
       <div data-tour="earnings" className="grid grid-cols-3 gap-3 rounded-3xl bg-white p-4 shadow-card">
