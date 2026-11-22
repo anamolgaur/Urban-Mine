@@ -53,8 +53,9 @@ test('all sample names and sources carry the SAMPLE label', async () => {
   for (const m of (await rows('SELECT model FROM device_model'))) assert.match(m.model, /SAMPLE/);
 });
 
-test('rate history gives a yesterday value for every current rate', async () => {
-  assert.equal((await rows('SELECT * FROM rate_history')).length, (await rows('SELECT * FROM rate')).length * 2);
+test('rate history gives 30 days, including yesterday, for every current rate', async () => {
+  assert.equal((await rows('SELECT * FROM rate_history')).length, (await rows('SELECT * FROM rate')).length * 30);
+  assert.equal((await rows("SELECT * FROM rate_history WHERE day = '2026-11-19'")).length, (await rows('SELECT * FROM rate')).length);
 });
 
 test('a real-use database gets prices, devices and guides, but no demo people', async () => {

@@ -23,7 +23,16 @@ export default defineConfig({
           { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
-      workbox: { navigateFallbackDenylist: [/^\/api/, /^\/uploads/] },
+      workbox: {
+        navigateFallbackDenylist: [/^\/api/, /^\/uploads/],
+        // Offline: show the last data seen. Live data first; the saved copy only when there is no network.
+        runtimeCaching: [
+          { urlPattern: ({ url, request }) => request.method === 'GET' && url.pathname.startsWith('/api/') && !url.pathname.includes('/auth'),
+            handler: 'NetworkFirst', options: { cacheName: 'api', networkTimeoutSeconds: 6, expiration: { maxEntries: 200, maxAgeSeconds: 7 * 86400 } } },
+          { urlPattern: /\/models\//, handler: 'CacheFirst', options: { cacheName: 'models', expiration: { maxEntries: 20 } } },
+        ],
+        globIgnores: ['**/models/**'],
+      },
     }),
   ],
   server: {

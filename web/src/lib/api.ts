@@ -44,6 +44,8 @@ export async function api<T>(path: string, opts: { method?: string; body?: unkno
   return data as T
 }
 
+export const authHeaders = () => headers(false)
+
 export async function fetchBlobUrl(path: string): Promise<string> {
   const res = await fetch(apiUrl(path), { headers: await headers(false) })
   if (!res.ok) throw new Error(`Request failed (${res.status})`)

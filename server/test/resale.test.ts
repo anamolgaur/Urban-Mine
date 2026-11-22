@@ -35,3 +35,12 @@ test('a lowball offer on a working phone is refused, a fair one is accepted', as
   const mine = (await app.inject({ url: '/api/lots', headers: as('u-worker-1') })).json().find((l: { id: string }) => l.id === lot.id);
   assert.deepEqual([mine.open_offers, mine.top_offer], [1, 65000]);
 });
+
+test('the exact model is read from text in the photos: labels, codes and the About-phone screen', async () => {
+  const { matchResale } = await import('../src/resale.ts');
+  assert.equal(matchResale('Settings About phone Model name Galaxy S25 Ultra Model number SM-S938B/DS')?.model.id, 'rs-s25-ultra');
+  assert.equal(matchResale('SAMSUNG SM-S928B')?.model.id, 'rs-s24-ultra');
+  assert.equal(matchResale('iPhone 12 64 GB')?.model.id, 'rs-ip12', 'not mistaken for the Pro Max');
+  assert.equal(matchResale('iPhone 12 Pro Max 256GB')?.model.id, 'rs-ip12-pm');
+  assert.equal(matchResale('charger output 5V 2A'), null);
+});

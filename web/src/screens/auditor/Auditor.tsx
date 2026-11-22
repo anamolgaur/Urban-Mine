@@ -8,6 +8,14 @@ import { Workers, Recyclers } from './People.tsx'
 import RateTable from './RateTable.tsx'
 import SafetyEditor from './SafetyEditor.tsx'
 import { authEnabled } from '../../lib/supabase.ts'
+import { fetchBlobUrl } from '../../lib/api.ts'
+
+async function exportCsv() {
+  const url = await fetchBlobUrl('/api/auditor/export.csv')
+  const a = document.createElement('a')
+  a.href = url; a.download = `urban-mine-lots-${new Date().toISOString().slice(0, 10)}.csv`; a.click()
+  setTimeout(() => URL.revokeObjectURL(url), 10000)
+}
 
 const NAV = [
   ['/auditor', 'aud_lots', true],
@@ -27,6 +35,7 @@ export default function Auditor() {
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-2">
           <span className="inline-flex h-8 w-8 items-center justify-center bg-ink"><Icon name="lots" size={18} className="text-amber" /></span>
           <h1 className="flex-1 text-xl font-bold">{t('auditor_title')}</h1>
+          <Btn full={false} variant="secondary" icon="download" onClick={() => exportCsv().catch(() => alert('Export failed'))}>{t('export_csv')}</Btn>
           <LangToggle />
           {authEnabled
             ? <Btn full={false} variant="secondary" icon="lock" onClick={signOut}>{t('sign_out')}</Btn>

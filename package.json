@@ -20,7 +20,8 @@
     "auditor": "node --env-file-if-exists=server/.env server/src/auditor.ts",
     "storage:setup": "node --env-file-if-exists=server/.env server/src/storage.ts setup",
     "storage:check": "node --env-file-if-exists=server/.env server/src/storage.ts check",
-    "postinstall": "node scripts/render-build.mjs"
+    "postinstall": "node scripts/render-build.mjs",
+    "showcase": "node --env-file-if-exists=server/.env server/src/showcase.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

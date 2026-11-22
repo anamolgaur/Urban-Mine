@@ -11,6 +11,7 @@ const yesterdayDelta: Record<string, number> = { copper: -6, aluminium: 2, steel
 
 export const TODAY = '2026-11-20';
 export const YESTERDAY = '2026-11-19';
+const shiftDay = (day: string, n: number) => new Date(Date.parse(day + 'T00:00:00Z') + n * 86400_000).toISOString().slice(0, 10);
 
 export function seedRates(): { rates: RateRow[]; history: { material: string; city: string; day: string; rate_per_kg: number }[] } {
   const rates: RateRow[] = [];
@@ -21,6 +22,13 @@ export function seedRates(): { rates: RateRow[]; history: { material: string; ci
       rates.push({ material: m, city, rate_per_kg: today, updated_at: `${TODAY}T06:00:00Z`, source: 'SAMPLE: recycler-published' });
       history.push({ material: m, city, day: TODAY, rate_per_kg: today });
       history.push({ material: m, city, day: YESTERDAY, rate_per_kg: today - yesterdayDelta[m] });
+      // 28 earlier days of SAMPLE history: small, repeatable daily moves (no randomness, so tests stay stable)
+      let v = today - yesterdayDelta[m];
+      for (let d = 2; d < 30; d++) {
+        const step = Math.round(Math.sin((d + m.length * 3) * 1.7) * base[m] * 0.012);
+        v = Math.max(1, v - step);
+        history.push({ material: m, city, day: shiftDay(TODAY, -d), rate_per_kg: v });
+      }
     }
   }
   // One deliberately stale row so the auditor "stale rows" view has something to show.

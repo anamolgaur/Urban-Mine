@@ -38,6 +38,22 @@ export async function offersFor(db: Db, lotId: string, now = new Date()): Promis
     .map((b) => ({ ...b, seconds_left: Math.max(0, Math.round((Date.parse(b.expires_at) - now.getTime()) / 1000)) }));
 }
 
+/** Average pickup rating per recycler, from workers who sold to them. */
+export async function ratingsFor(db: Db, recyclerIds: string[]): Promise<Record<string, { avg: number; count: number }>> {
+  if (!recyclerIds.length) return {};
+  const rows = await db.prepare(`SELECT recycler_id, AVG(stars)::float AS avg, COUNT(*)::int AS n FROM recycler_rating WHERE recycler_id IN (${recyclerIds.map(() => '?').join(',')}) GROUP BY recycler_id`).all(...recyclerIds) as Row[];
+  return Object.fromEntries(rows.map((r) => [r.recycler_id, { avg: Math.round(r.avg * 10) / 10, count: r.n }]));
+}
+
+/** The worker who sold a lot rates the buyer's pickup. One rating per lot; it can be changed. */
+export async function rateRecycler(db: Db, lotId: string, workerId: string, stars: number, note = '', now = new Date()) {
+  if (!Number.isInteger(stars) || stars < 1 || stars > 5) throw new Error('Choose 1 to 5 stars');
+  const sale = await db.prepare("SELECT l.user_id, b.recycler_id FROM lot l JOIN bid b ON b.lot_id = l.id AND b.status = 'accepted' WHERE l.id = ?").get(lotId) as Row | undefined;
+  if (!sale || sale.user_id !== workerId) throw new Error('You can only rate the buyer of your own sold lot');
+  await db.prepare('INSERT INTO recycler_rating VALUES (?,?,?,?,?,?) ON CONFLICT (lot_id) DO UPDATE SET stars = excluded.stars, note = excluded.note, created_at = excluded.created_at')
+    .run(lotId, workerId, sale.recycler_id, stars, String(note).trim().slice(0, 200) || null, now.toISOString());
+}
+
 export async function acceptBid(db: Db, bidId: string, userId: string, now = new Date()) {
   await expireBids(db, now);
   const bid = await db.prepare('SELECT * FROM bid WHERE id = ?').get(bidId) as Row | undefined;

@@ -63,6 +63,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const reload = useCallback(() => setTick((t) => t + 1), [])
   const signOut = useCallback(async () => {
     if (supabase) await supabase.auth.signOut().catch(() => {})
+    // a shared phone: the next person must not see the last user's saved lots
+    await caches?.delete('api').catch(() => {})
+    try { localStorage.removeItem('um_seen_offers') } catch { /* ignore */ }
     clearPhotoUrls()
     setMe(null); setPhone(null); setStatus('signed_out')
   }, [])

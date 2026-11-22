@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useSession } from '../../lib/session.tsx'
 import { useLang } from '../../lib/i18n.tsx'
 import { useApi } from '../../lib/useApi.ts'
+import Sparkline from '../../components/Sparkline.tsx'
 import { useFlow } from '../../lib/flow.tsx'
 import type { Lot, RateInfo } from '../../lib/types.ts'
 import { Screen, H2, SampleTag, Tag, Rule, Banner } from '../../components/ui.tsx'
@@ -32,6 +33,7 @@ export default function Home() {
   const { reset } = useFlow()
   const rates = useApi<Record<string, RateInfo>>(me ? `/api/rates?city=${encodeURIComponent(me.city)}` : null)
   const lots = useApi<Lot[]>('/api/lots')
+  const hist = useApi<Record<string, { day: string; rate: number }[]>>(me ? `/api/rates/history?city=${encodeURIComponent(me.city)}&days=30` : null)
   const list = lots.data ?? []
   const active = list.filter((l) => l.status !== 'sold')
   const earned = list.reduce((s, l) => s + (l.status === 'sold' ? (l.sale_amount ?? 0) : 0), 0)
@@ -97,7 +99,18 @@ export default function Home() {
             const r = rates.data![m]
             return (
               <li key={m} className="flex min-h-12 items-center justify-between py-2">
-                <span className="text-base font-medium">{t('mat.' + m)}</span>
+                <span className="flex-1 text-base font-medium">{t('mat.' + m)}</span>
+                {(() => {
+                  const h = hist.data?.[m]?.map((x) => x.rate) ?? []
+                  if (h.length < 2) return null
+                  const pct = Math.round(((h[h.length - 1] - h[0]) / h[0]) * 100)
+                  return (
+                    <span className="mr-3 flex items-center gap-2" title={t('trend_30d')}>
+                      <Sparkline values={h} />
+                      <span className={`num w-12 text-right text-sm font-semibold ${pct > 0 ? 'text-ok' : pct < 0 ? 'text-bad' : 'text-mute'}`}>{pct > 0 ? '+' : ''}{pct}%</span>
+                    </span>
+                  )
+                })()}
                 <span className="num text-right text-lg">
                   <span className="font-semibold">{inr(r.rate)}</span><span className="text-sm text-mute">/kg</span>
                   {r.change !== null && <span className="ml-2 text-sm">{r.change === 0 ? '–' : `${r.change > 0 ? '▲' : '▼'} ${Math.abs(r.change)}`}</span>}
@@ -107,7 +120,7 @@ export default function Home() {
           })}
         </Rule>
       )}
-      <p className="mt-1 text-sm text-mute">{t('vs_yesterday')}</p>
+      <p className="mt-1 text-sm text-mute">{t('vs_yesterday')} · {t('trend_30d')}</p>
 
       <H2>{t('recent_activity')}</H2>
       {activity.length === 0 ? <p className="py-3 text-sm text-mute">{t('no_activity')}</p> : (

@@ -14,7 +14,9 @@ export type MatchResult =
   | { kind: 'model'; best: Candidate; candidates: Candidate[] }
   | { kind: 'type_only'; reason: string; candidates: Candidate[] }
 export type Grade = 'A' | 'B' | 'C' | 'D'
-export type ScanResult = { scanId: string; type: string; typeConfidence: number; ocrText: string; match: MatchResult; photoHashes: string[] }
+export type ScanResult = { scanId: string; type: string; typeConfidence: number; ocrText: string; match: MatchResult; photoHashes: string[]
+  /** exact model read from text in the photos, if it is in the price list */
+  resale?: { id: string; brand: string; model: string; confidence: number; matched: string } | null }
 export type RateInfo = { rate: number; prev: number | null; change: number | null; updated_at: string; source: string }
 export type Estimate = {
   lines: { material: string; grams: number; value: number }[]
@@ -36,7 +38,7 @@ export type Lot = {
   open_offers?: number; top_offer?: number | null
 }
 export type FairVerdict = 'below' | 'within' | 'above'
-export type Offer = { id: string; recycler_name: string; amount: number; pickup_terms: string; expires_at: string; seconds_left: number; fair?: { verdict: FairVerdict; low: number; high: number } | null }
+export type Offer = { id: string; recycler_name: string; amount: number; pickup_terms: string; expires_at: string; seconds_left: number; rating?: { avg: number; count: number } | null; fair?: { verdict: FairVerdict; low: number; high: number } | null }
 export type Guide = { id: string; fault: L; device_type: string; difficulty: 'easy' | 'medium' | 'hard'; tools: L[]; steps: L[] }
 export type Listing = { id: string; name: string; skills: string[]; area: string; start_price: number; hours: string; verified_count: number }
 export type Diary = { problems?: string; parts?: string; minutes?: number; outcome?: 'fixed' | 'partly' | 'not_fixed'; customer_note?: string }

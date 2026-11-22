@@ -10,13 +10,13 @@ import type { Db } from './db.ts';
 import type { Identity, TokenVerifier } from './auth.ts';
 import { getSafetyPack, listSafetyTypes, isLang, type SafetyPack } from './safety.ts';
 import { estimate, getRates, setRate, staleRates } from './price.ts';
-import { RESALE, resaleRange } from './resale.ts';
+import { RESALE, resaleRange, matchResale } from './resale.ts';
 import { runScan, saveFeedback } from './scan.ts';
 import { StubClassifier, TesseractOcr, type Classifier, type Ocr } from './vision.ts';
 import { loadModels } from './matcher.ts';
 import { createLot } from './lots.ts';
 import { recordFlags } from './fraud.ts';
-import { listLot, placeBid, offersFor, bidsFor, acceptBid, rejectBid, holdLot, releaseLot, requestRecheck } from './market.ts';
+import { listLot, placeBid, offersFor, bidsFor, acceptBid, rejectBid, holdLot, releaseLot, requestRecheck, ratingsFor, rateRecycler } from './market.ts';
 import { receiptData, renderReceiptPdf } from './receipt.ts';
 import { repairComparison, listGuides, listListings, upsertListing, createJob, completeJob, updateJob, jobView, GEAR } from './repair.ts';
 import { savePhoto, parseDataUrl, sha256 } from './photos.ts';
@@ -192,6 +192,15 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   app.get('/api/models', async () => await loadModels(db));
   app.get<{ Querystring: { type?: string } }>('/api/resale', async (req) => RESALE.filter((m) => !req.query.type || m.type === req.query.type));
   app.get<{ Querystring: { city?: string } }>('/api/rates', async (req) => await getRates(db, req.query.city ?? 'Delhi'));
+  /** Daily rate per material for the last N days (default 30), oldest first: powers the trend lines. */
+  app.get<{ Querystring: { city?: string; days?: string } }>('/api/rates/history', async (req) => {
+    const days = Math.min(90, Math.max(2, Number(req.query.days) || 30));
+    const since = new Date(Date.now() - days * 86400_000).toISOString().slice(0, 10);
+    const rows = await db.prepare('SELECT material, day, rate_per_kg FROM rate_history WHERE city = ? AND day >= ? ORDER BY day').all(req.query.city ?? 'Delhi', since) as Row[];
+    const out: Record<string, { day: string; rate: number }[]> = {};
+    for (const r of rows) (out[r.material] ??= []).push({ day: r.day, rate: r.rate_per_kg });
+    return out;
+  });
   app.get<{ Querystring: { city?: string; modelId?: string; type?: string } }>('/api/estimate', async (req) => {
     const city = req.query.city ?? 'Delhi';
     const grade = (req.query as Row).grade;
@@ -288,7 +297,11 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     if ((await viewable(u, hashes)).size !== hashes.length) throw E(403, 'Those photos are not yours');
     const key = sha256(Buffer.from([...hashes].sort().join(',') + `|${type}|${modelId ?? ''}|${assessor.id}`));
     const cached = await db.prepare('SELECT result_json FROM condition_assessment WHERE set_hash = ?').get(key) as Row | undefined;
-    const out = (r: Row, fromCache: boolean) => ({ available: true, cached: fromCache, grade: r.grade, issues: r.issues, confidence: r.confidence, factor: CONDITION_FACTORS[r.grade as 'A'], source: 'ai' });
+    const out = (r: Row, fromCache: boolean) => {
+      const m = r.model ? matchResale(String(r.model)) : null;
+      return { available: true, cached: fromCache, grade: r.grade, issues: r.issues, confidence: r.confidence, factor: CONDITION_FACTORS[r.grade as 'A'], source: 'ai',
+        model: r.model ?? null, resale: m ? { id: m.model.id, brand: m.model.brand, model: m.model.model } : null };
+    };
     if (cached) return out(JSON.parse(cached.result_json), true);
     if (await usedToday(u.id) >= visionLimit) throw E(429, 'You have used all of today\'s photo checks', 'vision_limit');
     const images: { bytes: Buffer; type: string }[] = [];
@@ -315,10 +328,14 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     for (const i of b.images) hashes.push(await savePhoto(photos, i));
     await recordUploads(u.id, hashes);
     // OCR may be slow or offline: never let it block the scan. Typed label text overrides it.
+    const scanStarted = Date.now();
     const ocr: Ocr = {
       read: async (img) => {
         if (b.ocrText?.trim()) return b.ocrText;
-        try { return await Promise.race([realOcr.read(img), new Promise<string>((r) => setTimeout(() => r(''), 25000))]); } catch { return ''; }
+        // every photo is read now, so keep the whole scan under about 30 seconds
+        const left = 30000 - (Date.now() - scanStarted);
+        if (left < 3000) return '';
+        try { return await Promise.race([realOcr.read(img), new Promise<string>((r) => setTimeout(() => r(''), Math.min(20000, left)))]); } catch { return ''; }
       },
     };
     const res = await runScan(db, { classifier, ocr }, { userId: u.id, images: buffers, photoRefs: hashes, hint: b.hint });
@@ -381,7 +398,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const l = await db.prepare('SELECT * FROM lot WHERE id = ?').get(req.params.id) as Row | undefined;
     if (!l || (u.role === 'worker' && l.user_id !== u.id)) throw E(404, 'Lot not found');
     const sale = await db.prepare("SELECT b.amount, u.name AS buyer FROM bid b JOIN app_user u ON u.id = b.recycler_id WHERE b.lot_id = ? AND b.status = 'accepted'").get(l.id) as Row | undefined;
-    return { ...(await lotView(db, l)), sale: sale ? { amount: sale.amount, buyer: sale.buyer } : null };
+    const rated = await db.prepare('SELECT stars, note FROM recycler_rating WHERE lot_id = ?').get(l.id) as Row | undefined;
+    return { ...(await lotView(db, l)), sale: sale ? { amount: sale.amount, buyer: sale.buyer } : null, rating: rated ? { stars: rated.stars, note: rated.note } : null };
   });
   // DEMO ONLY: places two sample offers from sample recyclers so the sell flow can be shown without a second device.
   app.post<{ Params: { id: string } }>('/api/demo/offers/:id', async (req) => {
@@ -397,9 +415,15 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
       if (e) base += e.total * (it.qty ?? 1);
     }
     base = Math.max(10, Math.round(base));
-    await placeBid(db, { lotId: l.id, recyclerId: 'u-recycler-1', amount: Math.round(base * 1.08), pickupTerms: 'SAMPLE: pickup tomorrow 10am', minutes: 30 });
-    await placeBid(db, { lotId: l.id, recyclerId: 'u-recycler-2', amount: Math.round(base * 1.0), pickupTerms: 'SAMPLE: pickup today 6pm', minutes: 15 });
+    await placeBid(db, { lotId: l.id, recyclerId: 'u-recycler-1', amount: Math.round(base * 1.08), pickupTerms: 'Pickup tomorrow 10am', minutes: 30 });
+    await placeBid(db, { lotId: l.id, recyclerId: 'u-recycler-2', amount: Math.round(base * 1.0), pickupTerms: 'Pickup today 6pm', minutes: 15 });
     return await withFair(l, await offersFor(db, l.id));
+  });
+  app.post<{ Params: { id: string } }>('/api/lots/:id/rating', async (req) => {
+    const u = await actor(req, ['worker']);
+    const b = (req.body ?? {}) as Row;
+    await rateRecycler(db, req.params.id, u.id, Number(b.stars), String(b.note ?? ''));
+    return { ok: true };
   });
   app.post<{ Params: { id: string } }>('/api/lots/:id/list', async (req) => {
     const u = await actor(req, ['worker']);
@@ -447,7 +471,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   const withFair = async (lotRow: Row, offers: Row[]) => {
     const { expected } = await lotContext(lotRow);
     const known = expected.high > 0;
-    return offers.map((o) => ({ ...o, fair: known ? { verdict: fairVerdict(o.amount, expected.low, expected.high), low: expected.low, high: expected.high } : null }));
+    const ratings = await ratingsFor(db, [...new Set(offers.map((o) => o.recycler_id as string))]);
+    return offers.map((o) => ({ ...o, rating: ratings[o.recycler_id] ?? null, fair: known ? { verdict: fairVerdict(o.amount, expected.low, expected.high), low: expected.low, high: expected.high } : null }));
   };
   app.get('/api/recycler/bids', async (req) => await bidsFor(db, (await actor(req, ['recycler'])).id));
   app.get('/api/market/lots', async (req) => {
@@ -514,6 +539,27 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   });
 
   // ---------- auditor ----------
+  // CSV for auditors: every lot with its sale. Cells that start with = + - @ are quoted with ' so spreadsheets never run them as formulas.
+  app.get('/api/auditor/export.csv', async (req, reply) => {
+    await actor(req, ['auditor']);
+    const rows = await db.prepare(`SELECT l.id, l.created_at, w.name AS worker, l.items, l.weight_kg, l.steps_done, l.steps_total, l.status, l.hash,
+        r.name AS buyer, b.amount, rr.stars
+      FROM lot l JOIN app_user w ON w.id = l.user_id
+      LEFT JOIN bid b ON b.lot_id = l.id AND b.status = 'accepted'
+      LEFT JOIN app_user r ON r.id = b.recycler_id
+      LEFT JOIN recycler_rating rr ON rr.lot_id = l.id
+      ORDER BY l.created_at DESC`).all() as Row[];
+    const cell = (v: unknown) => {
+      let s = v == null ? '' : String(v);
+      if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    const items = (j: string) => { try { return (JSON.parse(j) as { type?: string }[]).map((i) => i.type ?? '').join(' + '); } catch { return ''; } };
+    const head = ['lot_id', 'date', 'worker', 'items', 'weight_kg', 'safety_steps_done', 'safety_steps_total', 'status', 'buyer', 'paid_inr', 'buyer_rating', 'record_hash'];
+    const body = rows.map((r) => [r.id, r.created_at, r.worker, items(r.items), r.weight_kg, r.steps_done, r.steps_total, r.status, r.buyer, r.amount, r.stars, r.hash].map(cell).join(','));
+    reply.header('Content-Type', 'text/csv; charset=utf-8').header('Content-Disposition', 'attachment; filename="urban-mine-lots.csv"');
+    return '\uFEFF' + [head.join(','), ...body].join('\r\n');
+  });
   app.get('/api/auditor/overview', async (req) => {
     await actor(req, ['auditor']);
     const workers = await db.prepare("SELECT id FROM app_user WHERE role = 'worker'").all() as Row[];
@@ -581,7 +627,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   app.put('/api/auditor/rates', async (req) => {
     await actor(req, ['auditor']);
     const b = req.body as { material: string; city: string; rate_per_kg: number; source?: string };
-    await setRate(db, b.material, b.city, Number(b.rate_per_kg), b.source?.trim() || 'SAMPLE: auditor edit');
+    await setRate(db, b.material, b.city, Number(b.rate_per_kg), b.source?.trim() || 'Auditor edit');
     return { ok: true };
   });
 

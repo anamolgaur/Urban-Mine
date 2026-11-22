@@ -9,7 +9,7 @@ walk(root)
 
 const src = files.filter((f) => !f.endsWith('strings.ts')).map((f) => readFileSync(f, 'utf8')).join('\n')
 const strings = readFileSync(join(root, 'lib/strings.ts'), 'utf8')
-const defined = new Set([...strings.matchAll(/^\s*'?([A-Za-z_.]+)'?:\s*\[/gm)].map((m) => m[1]))
+const defined = new Set([...strings.matchAll(/^\s*'?([A-Za-z0-9_.]+)'?:\s*\[/gm)].map((m) => m[1]))
 
 const used = new Set()
 for (const m of src.matchAll(/\bt\(\s*'([^']+)'/g)) used.add(m[1])

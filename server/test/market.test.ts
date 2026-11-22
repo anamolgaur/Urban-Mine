@@ -87,3 +87,32 @@ test('repair count rises only with before and after photos, once per job', async
   await assert.rejects(() => completeJob(db, job, 'after-hash'), /already/);
   await assert.rejects(() => createJob(db, 'rl-1', ''), /before photo/);
 });
+
+test('the seller rates the buyer after a sale; the average shows on that recycler\'s offers', async () => {
+  const { rateRecycler, ratingsFor } = await import('../src/market.ts');
+  const db = await freshDb();
+  const [lot] = (await db.prepare("SELECT l.id FROM lot l WHERE l.user_id = 'u-worker-1' AND l.status = 'listed'").all()) as { id: string }[];
+  const [top] = await offersFor(db, lot.id);
+  await acceptBid(db, top.id, 'u-worker-1');
+  await assert.rejects(() => rateRecycler(db, lot.id, 'u-worker-2', 5), /own sold lot/);
+  await assert.rejects(() => rateRecycler(db, lot.id, 'u-worker-1', 9), /1 to 5/);
+  await rateRecycler(db, lot.id, 'u-worker-1', 4, 'On time');
+  await rateRecycler(db, lot.id, 'u-worker-1', 5); // changing it keeps one rating
+  assert.deepEqual((await ratingsFor(db, [top.recycler_id]))[top.recycler_id], { avg: 5, count: 1 });
+});
+
+test('auditor CSV lists every lot and defuses spreadsheet formulas', async () => {
+  const { buildApp } = await import('../src/app.ts');
+  const db = await freshDb();
+  await db.prepare("UPDATE app_user SET name = '=HYPERLINK(1)' WHERE id = 'u-worker-1'").run();
+  const { mkdtempSync } = await import('node:fs'); const { tmpdir } = await import('node:os'); const { join } = await import('node:path');
+  const app = await buildApp(db, { demoLogin: true, uploadsDir: mkdtempSync(join(tmpdir(), 'um-')), ocr: { read: async () => '' } });
+  const res = await app.inject({ url: '/api/auditor/export.csv', headers: { 'x-user-id': 'u-auditor-1' } });
+  assert.equal(res.statusCode, 200);
+  assert.match(res.body, /lot_id,date,worker/);
+  assert.match(res.body, /'=HYPERLINK/);
+  const n = (await db.prepare('SELECT COUNT(*)::int c FROM lot').get() as { c: number }).c;
+  assert.equal(res.body.trim().split('\r\n').length, n + 1);
+  const denied = await app.inject({ url: '/api/auditor/export.csv', headers: { 'x-user-id': 'u-worker-1' } });
+  assert.equal(denied.statusCode, 403);
+});

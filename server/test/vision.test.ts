@@ -232,7 +232,7 @@ test('the Claude assessor sends a strict, small, safe request', async () => {
   const a = new ClaudeAssessor(client);
   assert.equal(a.available, true);
   const r = await a.assess({ images: [photo('e1'), photo('e2'), photo('e3'), photo('e4')], deviceType: 'phone', modelName: 'Arka A1' });
-  assert.deepEqual(r, { grade: 'B', issues: ['heavy_wear'], confidence: 0.7, reason: 'scratches' });
+  assert.deepEqual(r, { grade: 'B', issues: ['heavy_wear'], confidence: 0.7, reason: 'scratches', model: null });
   const { body, options } = seen[0];
   assert.equal(body.model, 'claude-sonnet-5-5');
   assert.ok(body.max_tokens >= 1024);

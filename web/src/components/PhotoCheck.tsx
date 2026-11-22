@@ -10,7 +10,7 @@ import Icon from './Icon.tsx'
 
 const GRADES: Grade[] = ['A', 'B', 'C', 'D']
 type Vision = { enabled: boolean; consent: boolean; daily_limit: number; used_today: number }
-type Assessed = { available: boolean; grade?: Grade; issues?: string[]; confidence?: number; factor?: number }
+type Assessed = { available: boolean; grade?: Grade; issues?: string[]; confidence?: number; factor?: number ; resale?: { id: string; brand: string; model: string } | null }
 
 /**
  * Condition grade for the device: chosen by the worker, or suggested from the photos by an AI service once they have agreed.
@@ -33,6 +33,8 @@ export default function PhotoCheck({ factor }: { factor?: number }) {
     try {
       const r = await api<Assessed>('/api/assess', { body: { hashes: scan.photoHashes.slice(0, 3), type: flow.type, model_id: flow.modelId ?? undefined } })
       if (r.available && r.grade) patch({ condition: { grade: r.grade, issues: r.issues ?? [], confidence: r.confidence ?? 0, source: 'ai', aiGrade: r.grade } })
+      // the AI can also recognise the model from how it looks; use it if the worker has not picked one
+      if (r.resale && !flow.resaleId) patch({ resaleId: r.resale.id })
       else setMsg('pc_unavailable')
     } catch (e) {
       if (e instanceof ApiError && e.code === 'vision_consent_required') vision.reload()

@@ -62,7 +62,7 @@ export default function Result() {
           <p className="mb-2 text-lg font-bold">{t('works_q')}</p>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('works_q')}>
             {[true, false].map((v) => (
-              <button key={String(v)} role="radio" aria-checked={flow.works === v} onClick={() => patch({ works: v, ...(v ? {} : { resaleId: null, customPrice: null }) })}
+              <button key={String(v)} role="radio" aria-checked={flow.works === v} onClick={() => patch({ works: v, ...(v ? (flow.scan?.resale && !flow.resaleId && !flow.customPrice ? { resaleId: flow.scan.resale.id } : {}) : { resaleId: null, customPrice: null }) })}
                 className={`min-h-14 rounded-2xl border border-hair px-3 text-base font-semibold ${flow.works === v ? 'bg-brand text-onbrand' : 'bg-white'}`}>
                 {flow.works === v && <Icon name="check" size={16} className="mr-1 inline" />}{v ? t('yes_works') : t('no_dead')}
               </button>
@@ -74,6 +74,9 @@ export default function Result() {
         {flow.works && (
           <section className="mt-3 rounded-2xl border border-hair bg-white p-3" aria-label={t('which_model')}>
             <p className="text-base font-bold">{t('which_model')}</p>
+            {flow.scan?.resale && flow.resaleId === flow.scan.resale.id && (
+              <div className="mt-2"><Banner tone="ok" icon="check">{t('model_from_photo', { model: `${flow.scan.resale.brand} ${flow.scan.resale.model}` })}</Banner></div>
+            )}
             <input className={`${inputCls} mt-2`} value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('model_search')} aria-label={t('model_search')} />
             <ul className="mt-2 max-h-72 overflow-y-auto">
               {(resale.data ?? []).filter((m) => `${m.brand} ${m.model}`.toLowerCase().includes(search.trim().toLowerCase())).map((m) => (
@@ -109,7 +112,7 @@ export default function Result() {
             <section className="mt-5 rounded-3xl bg-white shadow-card" aria-label={t('baseline_title')}>
               <div className="p-4 text-center">
                 <p className="text-sm font-medium text-mute">{t('baseline_title')} · {t('for_items', { n: qty })}</p>
-                <p className="num mt-2 text-6xl font-semibold leading-none"><span className="border-b-4 border-amber/70 px-1">{inr(baseline)}</span></p>
+                <p className="num mt-2 text-6xl font-semibold leading-none"><span className="inline-block border-b-4 border-amber/70 px-1 pb-2">{inr(baseline)}</span></p>
                 <p className="mt-3 text-base leading-snug text-mute">{t('baseline_note')}</p>
                 <div className="mt-3">
                   <button onClick={() => { if (saying) { stopSpeaking(); setSaying(false) } else { setSaying(true); speak(t('baseline_say', { amount: Math.round(baseline) }), lang, () => setSaying(false)) } }}
@@ -135,7 +138,7 @@ export default function Result() {
             <section aria-label={t('price_estimate')} className="mt-2 rounded-2xl border border-hair bg-white p-3">
               <p className="text-sm font-medium text-mute">{t('price_range')} · {t('for_items', { n: qty })}</p>
               <p className="num mt-1 text-3xl font-semibold leading-tight">
-                <span className="border-b-4 border-amber/70">{inr(e.low * qty)}</span><span className="px-1 text-mute">–</span><span className="border-b-4 border-amber/70">{inr(e.high * qty)}</span>
+                <span className="inline-block border-b-4 border-amber/70 pb-1">{inr(e.low * qty)}</span><span className="px-1 text-mute">–</span><span className="inline-block border-b-4 border-amber/70 pb-1">{inr(e.high * qty)}</span>
               </p>
               <p className="mt-2 text-base leading-snug text-mute">{e.basis === 'resale' ? t('range_resale') : e.basis === 'model' ? t('range_model') : t('range_type')} {t('not_an_offer')}</p>
               {updated && <p className="mt-1 flex items-center gap-1 text-sm text-mute"><Icon name="clock" size={14} />{t('rates_updated', { date: dateShort(updated) })}</p>}

@@ -107,7 +107,9 @@ export default function Confirm() {
         <p className="mt-3 text-sm text-mute">{t('we_read')}: <span className="num font-semibold text-ink">{scan.ocrText.trim().slice(0, 80)}</span></p>
       )}
 
-      {!modelMatch && <div className="mt-3"><Banner icon="info">{t('model_unreadable')}</Banner></div>}
+      {scan.resale
+        ? <div className="mt-3"><Banner tone="ok" icon="check">{t('model_from_photo', { model: `${scan.resale.brand} ${scan.resale.model}` })}</Banner></div>
+        : !modelMatch && <div className="mt-3"><Banner icon="info">{t('model_unreadable')}</Banner></div>}
 
       <p className="mt-4 text-center text-base font-bold">{t('confirm_required')}</p>
       <div className="mt-2 space-y-2">
