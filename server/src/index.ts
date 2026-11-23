@@ -4,6 +4,7 @@ import { openDb, getMeta, setMeta, type Db } from './db.ts';
 import { seed } from './seed.ts';
 import { seedDemo } from './demo.ts';
 import { buildApp } from './app.ts';
+import { ensureDemo } from './demoaccounts.ts';
 import { supabaseVerifier } from './auth.ts';
 import { LocalPhotoStore, SupabasePhotoStore, type PhotoStore } from './photostore.ts';
 import Anthropic from '@anthropic-ai/sdk';
@@ -71,12 +72,23 @@ if (DATABASE_URL) {
   if (!(await getMeta(db, 'seed_version'))) await fill(db);
 }
 
+// Demo accounts for showing the app (see DEMO.md). Set DEMO_ACCOUNTS=0 to leave them out.
+if (process.env.DEMO_ACCOUNTS !== '0') { await ensureDemo(db, photos); console.log('Demo accounts: ready (DEMO_ACCOUNTS=0 turns them off)'); }
+
 // Sign-in: Supabase Auth (phone OTP). The demo X-User-Id header is only accepted when explicitly enabled, or when no Supabase auth is configured outside production.
 const verifier = process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY ? supabaseVerifier(process.env.SUPABASE_URL, process.env.SUPABASE_ANON_KEY) : undefined;
 const demoLogin = process.env.DEMO_LOGIN ? process.env.DEMO_LOGIN === '1' : !verifier && process.env.NODE_ENV !== 'production';
 console.log(verifier ? `Sign-in: real accounts (phone or email + password)${demoLogin ? ' + DEMO LOGIN ENABLED' : ''}` : demoLogin ? 'Sign-in: DEMO LOGIN ONLY (set SUPABASE_URL and SUPABASE_ANON_KEY for real sign-in)' : 'WARNING: no sign-in configured, every request will be refused');
 // In production without CORS_ORIGIN the app and API share one address, so other websites are refused.
-const app = await buildApp(db, { webDir: process.env.WEB_DIR || resolve('web/dist'), photos, assessor, visionDailyLimit: Number(process.env.VISION_DAILY_LIMIT) || undefined, verifier, demoLogin, corsOrigin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean), sameOriginOnly: process.env.NODE_ENV === 'production' });
+// Auditors removing a fake account also delete its sign-in, which needs the service key (server only, never sent to the app).
+const authAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY ? {
+  async deleteUser(authId: string) {
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const r = await fetch(`${process.env.SUPABASE_URL!.replace(/\/$/, '')}/auth/v1/admin/users/${encodeURIComponent(authId)}`, { method: 'DELETE', headers: { apikey: key, authorization: `Bearer ${key}` }, signal: AbortSignal.timeout(8000) });
+    if (!r.ok && r.status !== 404) throw new Error(`Could not delete sign-in (${r.status})`);
+  },
+} : undefined;
+const app = await buildApp(db, { authAdmin, webDir: process.env.WEB_DIR || resolve('web/dist'), photos, assessor, visionDailyLimit: Number(process.env.VISION_DAILY_LIMIT) || undefined, verifier, demoLogin, corsOrigin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean), sameOriginOnly: process.env.NODE_ENV === 'production' });
 await app.listen({ port: PORT, host: '0.0.0.0' });
 console.log(`Urban Mine API on http://localhost:${PORT} (ALL DATA IS SAMPLE, ${DATABASE_URL ? 'Postgres via DATABASE_URL' : 'local PGlite at ' + DATA_DIR})`);
 

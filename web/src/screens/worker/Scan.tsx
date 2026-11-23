@@ -11,6 +11,11 @@ import { Screen, H2, Btn, ErrorNote, inputCls } from '../../components/ui.tsx'
 import { Rail } from '../../components/kit.tsx'
 import Illustration from '../../components/Illustration.tsx'
 import Icon from '../../components/Icon.tsx'
+import { useSession } from '../../lib/session.tsx'
+import { supabase } from '../../lib/supabase.ts'
+
+/** Demo accounts only: real photos of e-waste to try the scan with, when there is no camera or device at hand. */
+const SAMPLES = ['phone-cracked', 'phone-opened', 'phone-old', 'laptop', 'charger', 'circuit-boards']
 
 const SHOTS = ['shot_top', 'shot_under', 'shot_back', 'shot_label']
 
@@ -80,6 +85,15 @@ export default function Scan() {
     return () => clearInterval(i)
   }, [busy])
 
+  const { me } = useSession()
+  const showSamples = !!me?.demo || !supabase
+  async function pickSample(name: string) {
+    try {
+      const b = await (await fetch(`/samples/${name}.jpg`)).blob()
+      await onFile(new File([b], `${name}.jpg`, { type: 'image/jpeg' }))
+    } catch (e) { setErr((e as Error).message) }
+  }
+
   async function onFile(f: File | undefined) {
     if (!f) return
     try {
@@ -134,6 +148,22 @@ export default function Scan() {
             </label>
           </div>
         </div>
+
+        {showSamples && (
+          <div className="mt-3 rounded-2xl border border-hair bg-white p-3">
+            <p className="text-base font-semibold">{t('sample_photos')}</p>
+            <p className="mb-2 text-sm text-mute">{t('sample_photos_hint')}</p>
+            <ul className="flex gap-2 overflow-x-auto pb-1">
+              {SAMPLES.map((n) => (
+                <li key={n} className="shrink-0">
+                  <button onClick={() => void pickSample(n)} aria-label={t('sample_' + n.replace('-', '_'))} className="block h-16 w-20 overflow-hidden rounded-lg border border-hair focus:outline focus:outline-[3px] focus:outline-ink">
+                    <img src={`/samples/${n}.jpg`} alt="" className="h-full w-full object-cover" loading="lazy" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <ul className="mt-2 grid grid-cols-4 gap-2" aria-label={t('take_photos')}>
           {SHOTS.map((k, i) => (

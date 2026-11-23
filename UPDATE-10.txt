@@ -1,0 +1,31 @@
+UPDATE 10: security fixes + panel demo accounts
+
+HOW TO APPLY (Git Bash, in your Urban-Mine folder):
+  1. Unzip this so the files land on top of your repo (same folder structure). Overwrite when asked.
+  2. git add -A
+     git commit -m "Security fixes and demo accounts"
+     git push
+  3. Render redeploys by itself. On first start the server adds the new table (migration 0009)
+     and creates the 9 demo accounts with their sample lots, offers and repair jobs.
+
+ON RENDER (Environment): nothing new is required.
+  - SUPABASE_SERVICE_ROLE_KEY must already be set (it is, for photos). It also lets auditors delete a removed account's sign-in.
+  - Optional: DEMO_ACCOUNTS=0 turns the demo accounts off after the hackathon.
+
+ONE SETTING TO TURN ON YOURSELF (Supabase dashboard):
+  Authentication > Settings (Password security) > "Prevent use of leaked passwords" -> ON.
+
+WHAT CHANGED
+  Security
+  - Sign-up refuses offensive names, workshop names and addresses (English + Hindi/Hinglish, Latin + Devanagari,
+    catches tricks like F.U.C.K, sh1t, spaced letters). Real names like Chodankar, Hancock, Sussex still pass.
+  - Auditors get a "Remove" button on workers, buyers and pending accounts. Removing deletes the person's lots,
+    scans and photos, blanks the name, deletes the sign-in, and blocks that phone/email from signing up again.
+  - Offensive names are marked "Offensive name" in the auditor lists (approve is hidden for them).
+  - Lot weight is capped at 1000 kg.
+  Demo mode
+  - 9 demo accounts (3 workers, 3 e-waste buyers, 1 repairer, 2 auditors) with real sign-ins. See DEMO.md.
+  - Black "Demo account" strip on them; demo auditors get "Reset demo" (restores all sample data; real accounts untouched).
+  - "Or try a sample photo" on the Scan screen for demo accounts (6 real e-waste photos, Pexels licence).
+  - "Demo: add sample offers" works for demo workers on the live app (hidden for real users).
+  Tests: 126 pass (7 new).

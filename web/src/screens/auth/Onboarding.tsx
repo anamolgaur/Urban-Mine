@@ -56,7 +56,7 @@ export default function Onboarding() {
     try {
       await api('/api/onboarding', { body: { role, name: name.trim(), language: lang, consent: true, ...(needsPlace ? { address: address.trim(), city, workshop_name: shop.trim(), lat: pos?.lat, lng: pos?.lng } : {}) } })
       reload()
-    } catch (e) { setErr((e as Error).message); setBusy(false) }
+    } catch (e) { const c = (e as { code?: string }).code; setErr(c === 'offensive_name' ? 'err_offensive_name' : c === 'banned' ? 'err_banned' : (e as Error).message); setBusy(false) }
   }
 
   return (

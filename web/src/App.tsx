@@ -18,6 +18,7 @@ import { RepairerJobs, RepairerListing, RepairerBrowse } from './screens/worker/
 import Profile, { homeFor } from './screens/worker/Profile.tsx'
 import Recycler from './screens/recycler/Recycler.tsx'
 import Auditor from './screens/auditor/Auditor.tsx'
+import DemoBar from './components/DemoBar.tsx'
 import Login from './screens/auth/Login.tsx'
 import Onboarding from './screens/auth/Onboarding.tsx'
 import Pending from './screens/auth/Pending.tsx'
@@ -55,6 +56,7 @@ export default function App() {
   return (
     <Boundary>
     <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:left-2 focus:top-2 focus:z-50 focus:bg-ink focus:px-3 focus:py-2 focus:font-semibold focus:text-paper">{t('skip_main')}</a>
+    <DemoBar />
     <Routes>
       <Route path="/auditor/*" element={role === 'auditor' ? <Auditor /> : <Navigate to={start} replace />} />
       <Route path="/recycler" element={role === 'recycler' ? <Recycler /> : <Navigate to={start} replace />} />

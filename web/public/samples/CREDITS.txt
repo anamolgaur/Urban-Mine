@@ -1,0 +1,7 @@
+Sample photos for demo accounts. All from Pexels (https://www.pexels.com), free to use under the Pexels License (no attribution required; credited here anyway).
+phone-cracked.jpg   https://www.pexels.com/photo/16658255/
+phone-opened.jpg    https://www.pexels.com/photo/14534828/
+phone-old.jpg       https://www.pexels.com/photo/10785779/
+laptop.jpg          https://www.pexels.com/photo/265136/
+charger.jpg         https://www.pexels.com/photo/36012993/
+circuit-boards.jpg  https://www.pexels.com/photo/38411739/  (RETURN E-Waste)

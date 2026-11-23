@@ -5,7 +5,7 @@ export type L = { en: string; hi: string }
 export type Role = 'worker' | 'recycler' | 'repairer' | 'auditor'
 export type Approval = 'pending' | 'approved' | 'rejected'
 export type User = { id: string; role: Role; name: string; phone: string | null; language: Lang; workshop_id: string | null; approval: Approval; kyc_status: string }
-export type Me = { user: User; workshop: { id: string; name: string; address: string; lat: number | null; lng: number | null } | null; city: string }
+export type Me = { user: User; workshop: { id: string; name: string; address: string; lat: number | null; lng: number | null } | null; city: string; /** one of the shared demo accounts (sample data) */ demo?: boolean }
 /** /api/me for someone who has signed in but not finished account setup yet. */
 export type NeedsOnboarding = { user: null; needs_onboarding: true; phone: string | null; email?: string | null }
 export type ModelRef = { id: string; type: string; brand: string; model: string }

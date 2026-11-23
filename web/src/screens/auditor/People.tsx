@@ -17,14 +17,37 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   )
 }
 
-export function Workers() {
-  const { data, error, loading } = useApi<{ id: string; name: string; phone: string | null; workshop: string | null; lots: number; open_flags: number }[]>('/api/auditor/workers')
-  if (error) return <ErrorNote message={error} />
-  if (loading || !data) return <Loading />
-  return <Table head={['col_worker', 'col_workshop', 'col_lots', 'col_open_flags']} rows={data.map((w) => [w.name, w.workshop ?? '-', <span className="num">{w.lots}</span>, w.open_flags > 0 ? <Tag tone="bad">{w.open_flags}</Tag> : <span className="num">0</span>])} />
+/** Name, with a warning when it contains an offensive word. */
+function Who({ name, flagged, sub }: { name: string; flagged?: boolean; sub?: string | null }) {
+  const { t } = useLang()
+  return <span><span className="block font-semibold">{name}</span>{sub && <span className="block text-mute">{sub}</span>}{flagged && <span className="mt-1 inline-block"><Tag tone="bad">{t('name_flagged')}</Tag></span>}</span>
 }
 
-type Pending = { id: string; role: string; name: string; phone: string | null; approval: string; created_at: string | null; address: string | null }
+/** Remove a fake or abusive account: its data goes, its phone and email are blocked. Asks first. */
+function useRemove(after: () => void) {
+  const { t } = useLang()
+  const [msg, setMsg] = useState<string | null>(null)
+  const [err, setErr] = useState<string | null>(null)
+  async function remove(id: string, name: string) {
+    if (!window.confirm(t('remove_confirm', { name }))) return
+    setErr(null); setMsg(null)
+    try { await api(`/api/auditor/users/${id}/remove`, { body: { reason: 'Removed by auditor' } }); setMsg(t('removed_done')); after() } catch (e) { setErr((e as Error).message) }
+  }
+  const notes = <>{msg && <div className="mb-3"><Banner tone="ok" icon="check">{msg}</Banner></div>}{err && <ErrorNote message={err} />}</>
+  return { remove, notes }
+}
+
+export function Workers() {
+  const { t } = useLang()
+  const { data, error, loading, reload } = useApi<{ id: string; name: string; phone: string | null; workshop: string | null; lots: number; open_flags: number; name_flagged?: boolean }[]>('/api/auditor/workers')
+  const { remove, notes } = useRemove(reload)
+  if (error) return <ErrorNote message={error} />
+  if (loading || !data) return <Loading />
+  return <>{notes}<Table head={['col_worker', 'col_workshop', 'col_lots', 'col_open_flags', 'actions']} rows={data.map((w) => [<Who name={w.name} flagged={w.name_flagged} />, w.workshop ?? '-', <span className="num">{w.lots}</span>, w.open_flags > 0 ? <Tag tone="bad">{w.open_flags}</Tag> : <span className="num">0</span>,
+    <Btn full={false} variant={w.name_flagged ? 'danger' : 'secondary'} onClick={() => remove(w.id, w.name)}>{t('remove_account')}</Btn>])} /></>
+}
+
+type Pending = { id: string; role: string; name: string; phone: string | null; approval: string; created_at: string | null; address: string | null; name_flagged?: boolean }
 
 /** New recycler and repairer accounts wait here until an auditor decides. */
 function Approvals() {
@@ -32,6 +55,7 @@ function Approvals() {
   const { data, error, loading, reload } = useApi<Pending[]>('/api/auditor/approvals')
   const [msg, setMsg] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  const { remove, notes } = useRemove(reload)
   async function decide(id: string, decision: 'approved' | 'rejected') {
     setErr(null)
     try { await api(`/api/auditor/users/${id}/approval`, { body: { decision } }); setMsg(t(decision === 'approved' ? 'approved_done' : 'rejected_done')); reload() } catch (e) { setErr((e as Error).message) }
@@ -43,16 +67,17 @@ function Approvals() {
       <H2>{t('aud_approvals')}</H2>
       {msg && <div className="mb-3"><Banner tone="ok" icon="check">{msg}</Banner></div>}
       {err && <ErrorNote message={err} />}
+      {notes}
       {data.length === 0
         ? <p className="text-base text-mute">{t('no_approvals')}</p>
         : <Table head={['col_recycler', 'col_role', 'phone_label', 'col_requested', 'actions']} rows={data.map((p) => [
-            <span><span className="block font-semibold">{p.name}</span>{p.address && <span className="block text-mute">{p.address}</span>}</span>,
+            <Who name={p.name} sub={p.address} flagged={p.name_flagged} />,
             <Tag>{t('role.' + p.role)}</Tag>,
             <span className="num">{p.phone ?? '-'}</span>,
             <span className="num">{p.created_at ? p.created_at.slice(0, 10) : '-'}</span>,
             p.approval === 'rejected'
-              ? <span className="flex items-center gap-2"><Tag tone="bad">{t('approval.rejected')}</Tag><Btn full={false} variant="secondary" onClick={() => decide(p.id, 'approved')}>{t('approve')}</Btn></span>
-              : <span className="flex gap-2"><Btn full={false} onClick={() => decide(p.id, 'approved')}>{t('approve')}</Btn><Btn full={false} variant="danger" onClick={() => decide(p.id, 'rejected')}>{t('reject')}</Btn></span>,
+              ? <span className="flex flex-wrap items-center gap-2"><Tag tone="bad">{t('approval.rejected')}</Tag><Btn full={false} variant="secondary" onClick={() => decide(p.id, 'approved')}>{t('approve')}</Btn><Btn full={false} variant="danger" onClick={() => remove(p.id, p.name)}>{t('remove_account')}</Btn></span>
+              : <span className="flex flex-wrap gap-2">{!p.name_flagged && <Btn full={false} onClick={() => decide(p.id, 'approved')}>{t('approve')}</Btn>}<Btn full={false} variant="secondary" onClick={() => decide(p.id, 'rejected')}>{t('reject')}</Btn><Btn full={false} variant="danger" onClick={() => remove(p.id, p.name)}>{t('remove_account')}</Btn></span>,
           ])} />}
     </>
   )
@@ -60,14 +85,17 @@ function Approvals() {
 
 export function Recyclers() {
   const { t } = useLang()
-  const { data, error, loading } = useApi<{ id: string; name: string; bids: number; accepted: number }[]>('/api/auditor/recyclers')
+  const { data, error, loading, reload } = useApi<{ id: string; name: string; bids: number; accepted: number; name_flagged?: boolean }[]>('/api/auditor/recyclers')
+  const { remove, notes } = useRemove(reload)
   if (error) return <ErrorNote message={error} />
   if (loading || !data) return <Loading />
   return (
     <>
       <Approvals />
       <H2>{t('aud_recyclers')}</H2>
-      <Table head={['col_recycler', 'col_bids', 'col_accepted']} rows={data.map((r) => [r.name, <span className="num">{r.bids}</span>, <span className="num">{r.accepted}</span>])} />
+      {notes}
+      <Table head={['col_recycler', 'col_bids', 'col_accepted', 'actions']} rows={data.map((r) => [<Who name={r.name} flagged={r.name_flagged} />, <span className="num">{r.bids}</span>, <span className="num">{r.accepted}</span>,
+        <Btn full={false} variant={r.name_flagged ? 'danger' : 'secondary'} onClick={() => remove(r.id, r.name)}>{t('remove_account')}</Btn>])} />
     </>
   )
 }

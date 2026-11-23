@@ -8,6 +8,8 @@ import type { Lot, Offer } from '../../lib/types.ts'
 import { Screen, H2, Btn, Banner, Tag, SampleTag, ErrorNote } from '../../components/ui.tsx'
 import { Rail, Meter, KV, StatusChip, EmptyState, Skeleton } from '../../components/kit.tsx'
 import Icon from '../../components/Icon.tsx'
+import { useSession } from '../../lib/session.tsx'
+import { supabase } from '../../lib/supabase.ts'
 import { lotTitle } from './Lots.tsx'
 
 function useNow(ms: number) {
@@ -23,6 +25,7 @@ type LotFull = Lot & { sale?: { amount: number; buyer: string } | null }
 export default function Offers() {
   const { id } = useParams()
   const { t } = useLang()
+  const demoAcct = !!useSession().me?.demo
   const nav = useNavigate()
   const lot = useApi<LotFull>(`/api/lots/${id}`)
   const listed = lot.data?.status === 'listed'
@@ -171,10 +174,10 @@ export default function Offers() {
                   )
                 })}
               </ul>
-              <div className="mt-4">
+              {(demoAcct || !supabase) && <div className="mt-4">
                 <Btn variant="secondary" disabled={busy} icon="plus" onClick={() => act(async () => { await api(`/api/demo/offers/${l.id}`, { method: 'POST', body: {} }); offers.reload() })}>{t('demo_offers')}</Btn>
                 <p className="mt-1 text-sm text-mute">{t('demo_offers_hint')} <Link className="inline-flex min-h-11 items-center underline" to="/profile">{t('profile_link')}</Link></p>
-              </div>
+              </div>}
             </>
           )}
         </>

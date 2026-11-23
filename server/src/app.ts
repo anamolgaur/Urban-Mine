@@ -23,9 +23,11 @@ import { savePhoto, parseDataUrl, sha256 } from './photos.ts';
 import { UnavailableAssessor, CONDITION_FACTORS, isGrade, fairVerdict, type ConditionAssessor } from './condition.ts';
 import { LocalPhotoStore, sniffImage, type PhotoStore } from './photostore.ts';
 import { lotView, lotsFor, chainStatus, chainDetail } from './views.ts';
+import { offensive } from './moderation.ts';
+import { isDemoId, resetDemo } from './demoaccounts.ts';
 
 type Row = Record<string, any>;
-export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string; /** Where photos live. Defaults to local disk in uploadsDir. */ photos?: PhotoStore; /** Photo-based condition grading. Defaults to none (the photo check says it is not available). */ assessor?: ConditionAssessor; /** Photo checks per person per day. */ visionDailyLimit?: number; /** A built web app (web/dist) to serve from this same server, so one service hosts both. Ignored if it has no index.html. */ webDir?: string; /** Checks sign-in tokens (Supabase). */ verifier?: TokenVerifier; /** Accept the X-User-Id header as identity (demo and tests only). Defaults to on when there is no verifier. */ demoLogin?: boolean; /** Allowed web origins (CORS). Omit to allow any origin (dev). */ corsOrigin?: string[]; /** Refuse cross-site browser calls when no corsOrigin is given (production, one service). */ sameOriginOnly?: boolean; /** Requests per minute per address. */ rateLimit?: number };
+export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string; /** Where photos live. Defaults to local disk in uploadsDir. */ photos?: PhotoStore; /** Photo-based condition grading. Defaults to none (the photo check says it is not available). */ assessor?: ConditionAssessor; /** Photo checks per person per day. */ visionDailyLimit?: number; /** A built web app (web/dist) to serve from this same server, so one service hosts both. Ignored if it has no index.html. */ webDir?: string; /** Checks sign-in tokens (Supabase). */ verifier?: TokenVerifier; /** Accept the X-User-Id header as identity (demo and tests only). Defaults to on when there is no verifier. */ demoLogin?: boolean; /** Allowed web origins (CORS). Omit to allow any origin (dev). */ corsOrigin?: string[]; /** Refuse cross-site browser calls when no corsOrigin is given (production, one service). */ sameOriginOnly?: boolean; /** Requests per minute per address. */ rateLimit?: number; /** Deletes a sign-in account (Supabase Auth admin). Used when an auditor removes an account. */ authAdmin?: { deleteUser(authId: string): Promise<void> } };
 
 const E = (statusCode: number, message: string, code?: string) => Object.assign(new Error(message), { statusCode, appCode: code });
 const LANGS = ['hi', 'en', 'bn', 'ta', 'te', 'mr', 'gu'];
@@ -132,7 +134,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     if (!u) return { user: null, needs_onboarding: true, phone: id?.phone ?? null, email: id?.email ?? null };
     const w = u.workshop_id ? (await db.prepare('SELECT * FROM workshop WHERE id = ?').get(u.workshop_id) as Row) : null;
     const { auth_id: _a, ...user } = u;
-    return { user, workshop: w, city: cityOf(w?.address) };
+    return { user, workshop: w, city: cityOf(w?.address), demo: isDemoId(u.id) };
   });
   app.get('/api/cities', async () => ((await db.prepare('SELECT DISTINCT city FROM rate ORDER BY city').all()) as Row[]).map((r) => r.city as string));
   /** First-time account setup, after OTP sign-in. The role is chosen here once and cannot be changed later. */
@@ -144,6 +146,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     if (!['worker', 'recycler', 'repairer'].includes(b.role)) throw E(400, 'Choose worker, recycler or repairer');
     const name = String(b.name ?? '').trim();
     if (name.length < 2 || name.length > 60) throw E(400, 'Enter a name between 2 and 60 characters');
+    if (await isBanned(id.phone, id.email)) throw E(403, 'This phone number or email cannot be used to make an account.', 'banned');
+    if (offensive(name) || offensive(b.workshop_name) || offensive(b.address)) throw E(400, 'Please use your real name and workshop details. Offensive words are not allowed.', 'offensive_name');
     const language = LANGS.includes(b.language) ? b.language : 'hi';
     if (b.consent !== true) throw E(400, 'You need to accept the privacy notice');
     const now = new Date().toISOString();
@@ -165,25 +169,25 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
       .run(userId, b.role, name, id.phone, id.email ?? null, language, workshopId, id.sub, b.role === 'worker' ? 'approved' : 'pending', 'simulated', now, now);
     return { id: userId, role: b.role, approval: b.role === 'worker' ? 'approved' : 'pending' };
   });
-  app.delete('/api/me/data', async (req) => {
-    const u = await actor(req, undefined, { allowPending: true });
+  /** Delete everything a person made (lots, scans, photos, repair jobs) and blank their account. The row stays, so past sales still add up. */
+  const wipeUser = async (userId: string, label: string): Promise<number> => {
     // remember this user's photo hashes so the image files can be removed after the rows are gone
     const hashes = new Set<string>();
-    for (const r of await db.prepare('SELECT photo_hashes FROM lot WHERE user_id = ?').all(u.id) as Row[]) for (const h of JSON.parse(r.photo_hashes)) hashes.add(h);
-    for (const r of await db.prepare('SELECT photos FROM scan WHERE user_id = ?').all(u.id) as Row[]) for (const h of JSON.parse(r.photos)) hashes.add(h);
-    for (const r of await db.prepare('SELECT hash FROM photo_upload WHERE user_id = ?').all(u.id) as Row[]) hashes.add(r.hash);
-    for (const r of await db.prepare('SELECT j.before_photo b, j.after_photo a FROM repair_job j JOIN repairer_listing l ON l.id = j.listing_id WHERE l.user_id = ?').all(u.id) as Row[]) { if (r.b) hashes.add(r.b); if (r.a) hashes.add(r.a); }
+    for (const r of await db.prepare('SELECT photo_hashes FROM lot WHERE user_id = ?').all(userId) as Row[]) for (const h of JSON.parse(r.photo_hashes)) hashes.add(h);
+    for (const r of await db.prepare('SELECT photos FROM scan WHERE user_id = ?').all(userId) as Row[]) for (const h of JSON.parse(r.photos)) hashes.add(h);
+    for (const r of await db.prepare('SELECT hash FROM photo_upload WHERE user_id = ?').all(userId) as Row[]) hashes.add(r.hash);
+    for (const r of await db.prepare('SELECT j.before_photo b, j.after_photo a FROM repair_job j JOIN repairer_listing l ON l.id = j.listing_id WHERE l.user_id = ?').all(userId) as Row[]) { if (r.b) hashes.add(r.b); if (r.a) hashes.add(r.a); }
     await db.tx(async (t) => {
-      const lots =(await t.prepare('SELECT id FROM lot WHERE user_id = ?').all(u.id) as Row[]).map((l) => l.id);
+      const lots =(await t.prepare('SELECT id FROM lot WHERE user_id = ?').all(userId) as Row[]).map((l) => l.id);
       for (const id of lots) { await t.prepare('DELETE FROM bid WHERE lot_id = ?').run(id); await t.prepare('DELETE FROM flag WHERE lot_id = ?').run(id); }
-      await t.prepare('DELETE FROM feedback WHERE scan_id IN (SELECT id FROM scan WHERE user_id = ?)').run(u.id);
-      await t.prepare('DELETE FROM scan WHERE user_id = ?').run(u.id);
-      await t.prepare('DELETE FROM lot WHERE user_id = ?').run(u.id);
-      await t.prepare('DELETE FROM repair_job WHERE listing_id IN (SELECT id FROM repairer_listing WHERE user_id = ?)').run(u.id);
-      await t.prepare('DELETE FROM repairer_listing WHERE user_id = ?').run(u.id);
-      await t.prepare('DELETE FROM photo_upload WHERE user_id = ?').run(u.id);
-      await t.prepare('DELETE FROM vision_usage WHERE user_id = ?').run(u.id);
-      await t.prepare("UPDATE app_user SET name = 'Deleted user', phone = NULL, email = NULL, auth_id = NULL, vision_consent_at = NULL WHERE id = ?").run(u.id);
+      await t.prepare('DELETE FROM feedback WHERE scan_id IN (SELECT id FROM scan WHERE user_id = ?)').run(userId);
+      await t.prepare('DELETE FROM scan WHERE user_id = ?').run(userId);
+      await t.prepare('DELETE FROM lot WHERE user_id = ?').run(userId);
+      await t.prepare('DELETE FROM repair_job WHERE listing_id IN (SELECT id FROM repairer_listing WHERE user_id = ?)').run(userId);
+      await t.prepare('DELETE FROM repairer_listing WHERE user_id = ?').run(userId);
+      await t.prepare('DELETE FROM photo_upload WHERE user_id = ?').run(userId);
+      await t.prepare('DELETE FROM vision_usage WHERE user_id = ?').run(userId);
+      await t.prepare("UPDATE app_user SET name = ?, phone = NULL, email = NULL, auth_id = NULL, vision_consent_at = NULL WHERE id = ?").run(label, userId);
     });
     for (const h of hashes) {
       if (!HASH.test(h)) continue;
@@ -192,8 +196,18 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
         .get(`%"${h}"%`, `%"${h}"%`, h, h, h);
       if (!shared) { try { await photos.remove(h); } catch { /* already gone, or storage unreachable: the rows are deleted either way */ } }
     }
-    return { deleted: true, photos_removed: hashes.size };
+    return hashes.size;
+  };
+  app.delete('/api/me/data', async (req) => {
+    const u = await actor(req, undefined, { allowPending: true });
+    return { deleted: true, photos_removed: await wipeUser(u.id, 'Deleted user') };
   });
+  const isBanned = async (phone: string | null | undefined, email: string | null | undefined): Promise<boolean> => {
+    const digits = String(phone ?? '').replace(/\D/g, '');
+    if (digits && await db.prepare("SELECT 1 FROM banned_identity WHERE kind = 'phone' AND value = ?").get(digits)) return true;
+    if (email && await db.prepare("SELECT 1 FROM banned_identity WHERE kind = 'email' AND value = ?").get(String(email).toLowerCase())) return true;
+    return false;
+  };
 
   // ---------- reference data ----------
   app.get('/api/models', async () => await loadModels(db));
@@ -391,7 +405,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     b.items = b.items.map((i: any) => ({ ...(i.model_id ? { model_id: String(i.model_id) } : {}), type: i.type, ...(i.qty !== undefined ? { qty: i.qty } : {}), ...(i.grade ? { grade: i.grade, grade_source: i.grade_source === 'worker' ? 'worker' : 'ai' } : {}),
       ...(i.works === true ? { works: true, condition: ['good', 'fair', 'poor'].includes(i.condition) ? i.condition : 'good',
         ...(i.resale_id ? { resale_id: String(i.resale_id).slice(0, 40) } : {}), ...(Number(i.custom_price) > 0 && Number(i.custom_price) <= 1_000_000 ? { custom_price: Math.round(Number(i.custom_price)) } : {}) } : {}) }));
-    if (!(b.weight_kg > 0)) throw E(400, 'weight_kg must be positive');
+    if (!(b.weight_kg > 0) || b.weight_kg > 1000) throw E(400, 'Weight must be between 0 and 1000 kg', 'bad_weight');
     if (!(b.steps_total >= 0) || !(b.steps_done >= 0) || b.steps_done > b.steps_total) throw E(400, 'invalid step counts');
     if (!Array.isArray(b.photo_hashes) || !b.photo_hashes.every((h: string) => HASH.test(h))) throw E(400, 'photo_hashes must be sha-256 hashes');
     const gps = b.gps && Number.isFinite(b.gps.lat) && Number.isFinite(b.gps.lng) ? { lat: b.gps.lat, lng: b.gps.lng } : null;
@@ -409,9 +423,17 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     return { ...(await lotView(db, l)), sale: sale ? { amount: sale.amount, buyer: sale.buyer } : null, rating: rated ? { stars: rated.stars, note: rated.note } : null };
   });
   // DEMO ONLY: places two sample offers from sample recyclers so the sell flow can be shown without a second device.
+  /** A demo auditor puts every demo account back to the starting sample story (for the next person trying the app). Real accounts are untouched. */
+  app.post('/api/demo/reset', async (req) => {
+    const u = await actor(req, ['auditor']);
+    if (!isDemoId(u.id)) throw E(403, 'Only a demo auditor account can reset the demo');
+    await resetDemo(db, photos);
+    return { ok: true };
+  });
   app.post<{ Params: { id: string } }>('/api/demo/offers/:id', async (req) => {
-    if (!demo) throw E(404, 'Not found');
     const u = await actor(req, ['worker']);
+    // the sample buyers only bid on demo lots: in demo-login mode, or for the demo worker accounts on the live app
+    if (!demo && !isDemoId(u.id)) throw E(404, 'Not found');
     const l = await lotOwned(req.params.id, u.id);
     if (l.status !== 'listed') throw E(400, 'Lot is not listed');
     const ws = await db.prepare('SELECT w.address FROM workshop w JOIN app_user x ON x.workshop_id = w.id WHERE x.id = ?').get(u.id) as Row | undefined;
@@ -609,15 +631,38 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   });
   app.get('/api/auditor/workers', async (req) => {
     await actor(req, ['auditor']);
-    return (await db.prepare("SELECT u.id, u.name, u.phone, w.name AS workshop, (SELECT COUNT(*) FROM lot WHERE user_id = u.id) AS lots, (SELECT COUNT(*) FROM flag f JOIN lot l ON l.id = f.lot_id WHERE l.user_id = u.id AND f.status = 'open') AS open_flags FROM app_user u LEFT JOIN workshop w ON w.id = u.workshop_id WHERE u.role = 'worker'").all() as Row[]);
+    const rows = await db.prepare("SELECT u.id, u.name, u.phone, w.name AS workshop, w.address, (SELECT COUNT(*) FROM lot WHERE user_id = u.id) AS lots, (SELECT COUNT(*) FROM flag f JOIN lot l ON l.id = f.lot_id WHERE l.user_id = u.id AND f.status = 'open') AS open_flags FROM app_user u LEFT JOIN workshop w ON w.id = u.workshop_id WHERE u.role = 'worker' AND u.approval <> 'rejected'").all() as Row[];
+    return rows.map(({ address, ...r }) => ({ ...r, name_flagged: offensive(r.name) || offensive(r.workshop) || offensive(address) }));
   });
   app.get('/api/auditor/recyclers', async (req) => {
     await actor(req, ['auditor']);
-    return await db.prepare("SELECT u.id, u.name, COUNT(b.id) AS bids, COALESCE(SUM(CASE WHEN b.status='accepted' THEN 1 ELSE 0 END),0) AS accepted FROM app_user u LEFT JOIN bid b ON b.recycler_id = u.id WHERE u.role = 'recycler' GROUP BY u.id").all();
+    const rows = await db.prepare("SELECT u.id, u.name, COUNT(b.id) AS bids, COALESCE(SUM(CASE WHEN b.status='accepted' THEN 1 ELSE 0 END),0) AS accepted FROM app_user u LEFT JOIN bid b ON b.recycler_id = u.id WHERE u.role = 'recycler' AND u.approval <> 'rejected' GROUP BY u.id").all() as Row[];
+    return rows.map((r) => ({ ...r, name_flagged: offensive(r.name) }));
   });
   app.get('/api/auditor/approvals', async (req) => {
     await actor(req, ['auditor']);
-    return await db.prepare("SELECT u.id, u.role, u.name, u.phone, u.approval, u.created_at, w.address FROM app_user u LEFT JOIN workshop w ON w.id = u.workshop_id WHERE u.role IN ('recycler','repairer') AND u.approval <> 'approved' ORDER BY u.created_at DESC").all();
+    const rows = await db.prepare("SELECT u.id, u.role, u.name, u.phone, u.approval, u.created_at, w.name AS workshop, w.address FROM app_user u LEFT JOIN workshop w ON w.id = u.workshop_id WHERE u.role IN ('recycler','repairer') AND u.approval <> 'approved' AND u.name <> 'Removed account' ORDER BY u.created_at DESC").all() as Row[];
+    return rows.map(({ workshop, ...r }) => ({ ...r, name_flagged: offensive(r.name) || offensive(workshop) || offensive(r.address) }));
+  });
+  /** Remove a fake or abusive account: delete what it made, blank the name and workshop, block its phone and email, and delete its sign-in. */
+  app.post<{ Params: { id: string } }>('/api/auditor/users/:id/remove', async (req) => {
+    const me = await actor(req, ['auditor']);
+    const target = await db.prepare('SELECT * FROM app_user WHERE id = ?').get(req.params.id) as Row | undefined;
+    if (!target || !['worker', 'recycler', 'repairer'].includes(target.role)) throw E(404, 'Account not found');
+    const reason = String((req.body as Row | undefined)?.reason ?? '').trim().slice(0, 200) || null;
+    const now = new Date().toISOString();
+    // demo accounts are shared by everyone trying the app: removing one blanks it until the next demo reset, but never blocks or deletes its sign-in
+    const demoAcct = isDemoId(target.id);
+    const digits = demoAcct ? '' : String(target.phone ?? '').replace(/\D/g, '');
+    if (digits) await db.prepare("INSERT INTO banned_identity (kind, value, reason, banned_by, created_at) VALUES ('phone', ?, ?, ?, ?) ON CONFLICT DO NOTHING").run(digits, reason, me.id, now);
+    if (target.email && !demoAcct) await db.prepare("INSERT INTO banned_identity (kind, value, reason, banned_by, created_at) VALUES ('email', ?, ?, ?, ?) ON CONFLICT DO NOTHING").run(String(target.email).toLowerCase(), reason, me.id, now);
+    await db.prepare("UPDATE bid SET status = 'rejected' WHERE recycler_id = ? AND status = 'open'").run(target.id);
+    const removed = await wipeUser(target.id, 'Removed account');
+    if (demoAcct) await db.prepare('UPDATE app_user SET auth_id = ? WHERE id = ?').run(target.auth_id ?? null, target.id);
+    await db.prepare("UPDATE app_user SET approval = 'rejected' WHERE id = ?").run(target.id);
+    if (target.workshop_id) await db.prepare("UPDATE workshop SET name = 'Removed', address = '', lat = NULL, lng = NULL WHERE id = ?").run(target.workshop_id);
+    if (target.auth_id && deps.authAdmin && !demoAcct) { try { await deps.authAdmin.deleteUser(String(target.auth_id)); } catch { /* the app account is already blank and blocked */ } }
+    return { ok: true, photos_removed: removed };
   });
   app.post<{ Params: { id: string } }>('/api/auditor/users/:id/approval', async (req) => {
     await actor(req, ['auditor']);
