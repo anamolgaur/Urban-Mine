@@ -25,7 +25,7 @@ function Row({ r, stale, onSaved }: { r: Rate; stale: boolean; onSaved: () => vo
         <input aria-label={`${t('mat.' + r.material)} ${r.city}`} className={`${inputCls} num max-w-28`} inputMode="decimal" value={v} onChange={(e) => setV(e.target.value.replace(/[^0-9.]/g, ''))} />
         {err && <span className="block text-sm text-bad">{err}</span>}
       </td>
-      <td className="px-3 py-2 text-sm">{r.updated_at.slice(0, 10)} {stale ? <Tag tone="bad">{t('stale')} · {days}d</Tag> : <span className="text-mute">({days}d)</span>}</td>
+      <td className="px-3 py-2 text-sm">{r.updated_at.slice(0, 10)} {stale ? <Tag tone="bad">{t('stale')}, {days}d</Tag> : <span className="text-mute">({days}d)</span>}</td>
       <td className="px-3 py-2 text-sm text-mute">{r.source}</td>
       <td className="px-3 py-2"><Btn full={false} variant="secondary" disabled={busy || Number(v) === r.rate_per_kg || !(Number(v) > 0)} onClick={save}>{t('save')}</Btn></td>
     </tr>
@@ -42,7 +42,7 @@ export default function RateTable() {
     <>
       <div className="mb-3 flex items-center gap-2"><SampleTag /><span className="text-sm text-mute">{t('rates_help')}</span></div>
       {data.stale.length > 0 && <div className="mb-3"><Banner tone="amber" icon="clock">{t('stale_banner', { n: data.stale.length })}</Banner></div>}
-      <div className="overflow-x-auto rounded-2xl border border-hair bg-white">
+      <div data-tour="rates" className="overflow-x-auto rounded-2xl border border-hair bg-white">
         <table className="cards-sm w-full min-w-[760px] text-left text-sm">
           <thead><tr className="border-b border-hair text-sm">{['material', 'col_city', 'col_rate', 'col_updated', 'col_source', ''].map((h, i) => <th key={i} className="px-3 py-2 font-semibold">{h ? t(h) : ''}</th>)}</tr></thead>
           <tbody>{data.rates.map((r) => <Row key={r.material + r.city + r.rate_per_kg + r.updated_at} r={r} stale={staleKeys.has(r.material + r.city)} onSaved={reload} />)}</tbody>

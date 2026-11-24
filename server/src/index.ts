@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { openDb, getMeta, setMeta, type Db } from './db.ts';
@@ -88,7 +89,11 @@ const authAdmin = process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_
     if (!r.ok && r.status !== 404) throw new Error(`Could not delete sign-in (${r.status})`);
   },
 } : undefined;
-const app = await buildApp(db, { authAdmin, webDir: process.env.WEB_DIR || resolve('web/dist'), photos, assessor, visionDailyLimit: Number(process.env.VISION_DAILY_LIMIT) || undefined, verifier, demoLogin, corsOrigin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean), sameOriginOnly: process.env.NODE_ENV === 'production' });
+// Guided Demo mode (no account needed). Guest passes are signed with DEMO_GUEST_SECRET, or a key derived from the service key,
+// so they keep working when Render restarts the server. Without either, a random key: passes then end at each restart (the app asks for a new one).
+const guestSecret = process.env.DEMO_GUEST_SECRET
+  || (process.env.SUPABASE_SERVICE_ROLE_KEY ? createHash('sha256').update(`urban-mine-demo-guest:${process.env.SUPABASE_SERVICE_ROLE_KEY}`).digest('hex') : undefined);
+const app = await buildApp(db, { guestDemo: process.env.DEMO_ACCOUNTS !== '0', guestSecret, authAdmin, webDir: process.env.WEB_DIR || resolve('web/dist'), photos, assessor, visionDailyLimit: Number(process.env.VISION_DAILY_LIMIT) || undefined, verifier, demoLogin, corsOrigin: process.env.CORS_ORIGIN?.split(',').map((s) => s.trim()).filter(Boolean), sameOriginOnly: process.env.NODE_ENV === 'production' });
 await app.listen({ port: PORT, host: '0.0.0.0' });
 console.log(`Urban Mine API on http://localhost:${PORT} (ALL DATA IS SAMPLE, ${DATABASE_URL ? 'Postgres via DATABASE_URL' : 'local PGlite at ' + DATA_DIR})`);
 

@@ -24,14 +24,16 @@ import Onboarding from './screens/auth/Onboarding.tsx'
 import Pending from './screens/auth/Pending.tsx'
 import Setup from './screens/auth/Setup.tsx'
 import Tour from './components/Tour.tsx'
+import DemoGuide from './components/DemoGuide.tsx'
 import { useState } from 'react'
 import { setupStage, setSetupStage } from './lib/theme.ts'
 
 export default function App() {
-  const { me, status, error, reload } = useSession()
+  const { me, status, error, reload, demoRole } = useSession()
   const { t } = useLang()
   const [stage, setStage] = useState(setupStage)
   const go = (s: 'setup' | 'tour' | 'done') => { setSetupStage(s); setStage(s) }
+
 
   if (status === 'error') {
     return (
@@ -48,7 +50,8 @@ export default function App() {
   if (me.user.approval !== 'approved') return <Pending />
 
   // first run on this device: language, then light/dark, then the guided tour
-  if (stage === 'setup') return <Setup onDone={() => go('tour')} />
+  // guests in the guided Demo mode skip setup: the guide explains everything itself
+  if (stage === 'setup' && !demoRole) return <Setup onDone={() => go('tour')} />
 
   const role = me.user.role
   const start = homeFor(role)
@@ -78,7 +81,8 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
-    {stage === 'tour' && <Tour role={role} onDone={() => go('done')} />}
+    {stage === 'tour' && !demoRole && <Tour role={role} onDone={() => go('done')} />}
+    {demoRole && <DemoGuide />}
     </Boundary>
   )
 }

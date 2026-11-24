@@ -150,7 +150,7 @@ export default function Scan() {
         </div>
 
         {showSamples && (
-          <div className="mt-3 rounded-2xl border border-hair bg-white p-3">
+          <div data-tour="samples" className="mt-3 rounded-2xl border border-hair bg-white p-3">
             <p className="text-base font-semibold">{t('sample_photos')}</p>
             <p className="mb-2 text-sm text-mute">{t('sample_photos_hint')}</p>
             <ul className="flex gap-2 overflow-x-auto pb-1">
@@ -216,7 +216,7 @@ export default function Scan() {
       </div>
 
       <div className="fixed bottom-0 left-1/2 z-30 w-full max-w-[480px] -translate-x-1/2 border-t border-hair bg-paper p-3">
-        <Btn onClick={submit} disabled={taken === 0} icon="scan">{t('check_device')}{taken > 0 ? ` · ${t('photos_added', { n: taken })}` : ''}</Btn>
+        <Btn onClick={submit} disabled={taken === 0} icon="scan">{t('check_device')}{taken > 0 ? ` (${t('photos_added', { n: taken })})` : ''}</Btn>
         {taken === 0 && <p className="mt-1 text-center text-sm text-mute">{t('need_one_photo')}</p>}
       </div>
     </Screen>

@@ -24,10 +24,11 @@ import { UnavailableAssessor, CONDITION_FACTORS, isGrade, fairVerdict, type Cond
 import { LocalPhotoStore, sniffImage, type PhotoStore } from './photostore.ts';
 import { lotView, lotsFor, chainStatus, chainDetail } from './views.ts';
 import { offensive } from './moderation.ts';
-import { isDemoId, resetDemo } from './demoaccounts.ts';
+import { isDemoId, resetDemo, DEMO_ACCOUNTS } from './demoaccounts.ts';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
 type Row = Record<string, any>;
-export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string; /** Where photos live. Defaults to local disk in uploadsDir. */ photos?: PhotoStore; /** Photo-based condition grading. Defaults to none (the photo check says it is not available). */ assessor?: ConditionAssessor; /** Photo checks per person per day. */ visionDailyLimit?: number; /** A built web app (web/dist) to serve from this same server, so one service hosts both. Ignored if it has no index.html. */ webDir?: string; /** Checks sign-in tokens (Supabase). */ verifier?: TokenVerifier; /** Accept the X-User-Id header as identity (demo and tests only). Defaults to on when there is no verifier. */ demoLogin?: boolean; /** Allowed web origins (CORS). Omit to allow any origin (dev). */ corsOrigin?: string[]; /** Refuse cross-site browser calls when no corsOrigin is given (production, one service). */ sameOriginOnly?: boolean; /** Requests per minute per address. */ rateLimit?: number; /** Deletes a sign-in account (Supabase Auth admin). Used when an auditor removes an account. */ authAdmin?: { deleteUser(authId: string): Promise<void> } };
+export type AppDeps = { classifier?: Classifier; ocr?: Ocr; uploadsDir?: string; /** Where photos live. Defaults to local disk in uploadsDir. */ photos?: PhotoStore; /** Photo-based condition grading. Defaults to none (the photo check says it is not available). */ assessor?: ConditionAssessor; /** Photo checks per person per day. */ visionDailyLimit?: number; /** A built web app (web/dist) to serve from this same server, so one service hosts both. Ignored if it has no index.html. */ webDir?: string; /** Checks sign-in tokens (Supabase). */ verifier?: TokenVerifier; /** Accept the X-User-Id header as identity (demo and tests only). Defaults to on when there is no verifier. */ demoLogin?: boolean; /** Allowed web origins (CORS). Omit to allow any origin (dev). */ corsOrigin?: string[]; /** Refuse cross-site browser calls when no corsOrigin is given (production, one service). */ sameOriginOnly?: boolean; /** Requests per minute per address. */ rateLimit?: number; /** Requests that change data, per minute per address. Default 60. */ writeLimit?: number; /** Let anyone open the guided Demo mode without an account (signed guest passes for the demo accounts only). */ guestDemo?: boolean; /** Key that signs guest passes. Random per start if not given. */ guestSecret?: string; /** Deletes a sign-in account (Supabase Auth admin). Used when an auditor removes an account. */ authAdmin?: { deleteUser(authId: string): Promise<void> } };
 
 const E = (statusCode: number, message: string, code?: string) => Object.assign(new Error(message), { statusCode, appCode: code });
 const LANGS = ['hi', 'en', 'bn', 'ta', 'te', 'mr', 'gu'];
@@ -44,7 +45,35 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   const app = Fastify({ bodyLimit: 25 * 1024 * 1024 });
   await app.register(cors, { origin: deps.corsOrigin?.length ? deps.corsOrigin : (deps.sameOriginOnly ? false : true) });
   // Limit requests per address, so one person or script cannot flood the server. Generous for real use.
-  await app.register(rateLimit, { max: deps.rateLimit ?? 600, timeWindow: '1 minute', allowList: (req) => req.url === '/api/health' });
+  /**
+   * Who is asking, for rate limits. On Render every request arrives through Cloudflare and Render's own proxy, so req.ip is a
+   * proxy's address, the same for every visitor: limits keyed on it were shared by EVERYONE at once. Cloudflare puts the real
+   * visitor address in cf-connecting-ip and overwrites any value a visitor sends, so it cannot be faked through onrender.com.
+   * Locally and in tests there is no such header, and req.ip is the real caller.
+   */
+  const clientKey = (req: { headers: Record<string, unknown>; ip: string }) => {
+    const cf = req.headers['cf-connecting-ip'];
+    return typeof cf === 'string' && cf.length > 0 && cf.length < 64 ? cf : req.ip;
+  };
+  await app.register(rateLimit, { max: deps.rateLimit ?? 600, timeWindow: '1 minute', keyGenerator: clientKey, allowList: (req) => req.url === '/api/health' });
+  /**
+   * A tighter limit only for requests that CHANGE something (POST, PUT, PATCH, DELETE): bids, offers, lots, sign-ups, removals.
+   * Reading screens stays fast; spamming bids or sign-ups from one address stops after this many per minute.
+   * Kept in memory: it resets when the server restarts, which is fine for stopping bursts.
+   */
+  const writeMax = deps.writeLimit ?? 60;
+  const writes = new Map<string, number[]>();
+  app.addHook('onRequest', async (req, reply) => {
+    if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return;
+    const key = clientKey(req), now = Date.now();
+    const recent = (writes.get(key) ?? []).filter((t) => now - t < 60_000);
+    if (recent.length >= writeMax) {
+      reply.code(429).header('retry-after', '60').send({ error: 'Too many changes in a minute. Please wait a moment and try again.', code: 'too_many_writes' });
+      return reply;
+    }
+    recent.push(now); writes.set(key, recent);
+    if (writes.size > 10_000) for (const [k, v] of writes) if (now - v[v.length - 1] > 60_000) writes.delete(k); // forget idle addresses
+  });
   // Browser safety headers on every response.
   app.addHook('onSend', async (_req, reply, payload) => {
     reply.header('x-content-type-options', 'nosniff');
@@ -89,7 +118,31 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   };
 
   /** Who is calling: the account (null if signed in but not set up yet) and the sign-in identity. */
+  /**
+   * Guest passes for the guided Demo mode on the sign-in screen: anyone can try the app as a demo account without a password.
+   * A pass is "<account id>.<expiry ms>.<signature>", signed with a server-only key (HMAC-SHA256), so it cannot be forged or
+   * pointed at a real account: it is only accepted for the shared demo accounts, and only until it expires (2 hours).
+   */
+  const guestKey = deps.guestSecret ?? randomBytes(32).toString('hex');
+  const signGuest = (id: string, exp: number) => createHmac('sha256', guestKey).update(`${id}.${exp}`).digest('base64url');
+  const guestPass = (id: string) => { const exp = Date.now() + 2 * 3600_000; return { token: `${id}.${exp}.${signGuest(id, exp)}`, expires_at: new Date(exp).toISOString() }; };
+  const readGuest = (token: string): string | null => {
+    const m = /^([a-z0-9-]+)\.(\d{10,16})\.([A-Za-z0-9_-]{20,})$/.exec(token);
+    if (!m) return null;
+    const [, id, exp, sig] = m;
+    const want = Buffer.from(signGuest(id, Number(exp))), got = Buffer.from(sig);
+    if (want.length !== got.length || !timingSafeEqual(want, got)) return null; // wrong signature: forged or from an old server key
+    if (Number(exp) < Date.now() || !isDemoId(id)) return null;                  // expired, or not a demo account
+    return id;
+  };
+
   const whoIs = async (req: FastifyRequest): Promise<{ user: Row | null; id: Identity | null }> => {
+    const guest = String(req.headers['x-demo-guest'] ?? '');
+    if (guest && deps.guestDemo) {
+      const gid = readGuest(guest);
+      if (!gid) throw E(401, 'The demo pass has expired. Start the demo again.', 'guest_expired');
+      return { user: (await db.prepare('SELECT * FROM app_user WHERE id = ?').get(gid) as Row | undefined) ?? null, id: null };
+    }
     const demoId = demo ? String(req.headers['x-user-id'] ?? '') : '';
     if (demoId) {
       const u = await db.prepare('SELECT * FROM app_user WHERE id = ?').get(demoId) as Row | undefined;
@@ -109,6 +162,23 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     if (!opts.allowPending && u.approval !== 'approved') throw E(403, u.approval === 'rejected' ? 'Your account was not approved' : 'Your account is waiting for approval', u.approval === 'rejected' ? 'rejected' : 'pending_approval');
     return u;
   };
+  /**
+   * Demo and real data never mix. The demo accounts are shared by everyone trying the app, so:
+   *  - demo buyers only see and bid on demo workers' lots, and real buyers never see demo lots;
+   *  - demo workers only see the demo repairer;
+   *  - a demo auditor only sees and acts on demo accounts, and cannot change the real rate table or safety guides.
+   * Real auditors (the programme team) still see everything, demo accounts included.
+   */
+  // The demo and real "worlds" are kept apart only when the demo accounts exist (guestDemo on, as in production).
+  // With the demo off (local tests, DEMO_ACCOUNTS=0) the sample ids are ordinary accounts and nothing is filtered.
+  const worlds = !!deps.guestDemo;
+  const sameWorld = (a: unknown, b: unknown) => !worlds || isDemoId(a) === isDemoId(b);
+  const DEMO_IN = `(${DEMO_ACCOUNTS.map((a) => `'${a.id}'`).join(',')})`; // fixed ids from code, never user input
+  const demoAuditor = (u: Row) => worlds && u.role === 'auditor' && isDemoId(u.id);
+  /** For a demo auditor, 404 on anything outside the demo; real auditors pass. */
+  const auditorMay = (u: Row, ownerId: unknown) => { if (demoAuditor(u) && !isDemoId(ownerId)) throw E(404, 'Not found'); };
+  const noDemoEdits = (u: Row) => { if (demoAuditor(u)) throw E(403, 'Demo auditors can look at this but not change it.', 'demo_readonly'); };
+
   const lotOwned = async (id: string, userId: string): Promise<Row> => {
     const l = await db.prepare('SELECT * FROM lot WHERE id = ?').get(id) as Row | undefined;
     if (!l || l.user_id !== userId) throw E(404, 'Lot not found');
@@ -379,7 +449,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     return pack;
   });
   app.put<{ Params: { type: string; lang: string } }>('/api/safety/:type/:lang', async (req) => {
-    await actor(req, ['auditor']);
+    noDemoEdits(await actor(req, ['auditor']));
     if (!isLang(req.params.lang)) throw E(400, 'lang must be hi or en');
     const cur = await getSafetyPack(db, req.params.type, req.params.lang);
     if (!cur) throw E(404, 'No safety pack');
@@ -423,6 +493,18 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     return { ...(await lotView(db, l)), sale: sale ? { amount: sale.amount, buyer: sale.buyer } : null, rating: rated ? { stars: rated.stars, note: rated.note } : null };
   });
   // DEMO ONLY: places two sample offers from sample recyclers so the sell flow can be shown without a second device.
+  /** Start (or switch role in) the guided Demo mode: no account needed, returns a 2-hour guest pass for that role's demo account. */
+  app.post('/api/demo/guest', async (req) => {
+    if (!deps.guestDemo) throw E(404, 'Not found');
+    const role = String((req.body as Row | undefined)?.role ?? '');
+    const id = ({ worker: 'u-worker-1', recycler: 'u-recycler-1', repairer: 'u-repairer-1', auditor: 'u-auditor-1' } as Record<string, string>)[role];
+    if (!id) throw E(400, 'role must be worker, recycler, repairer or auditor');
+    const u = await db.prepare('SELECT approval FROM app_user WHERE id = ?').get(id) as Row | undefined;
+    if (!u) throw E(503, 'The demo is being set up. Try again in a minute.', 'demo_unavailable');
+    // someone removed or un-approved a demo account: put the demo back so the next visitor gets a working app
+    if (u.approval !== 'approved') await resetDemo(db, photos);
+    return { ...guestPass(id), role, user_id: id };
+  });
   /** A demo auditor puts every demo account back to the starting sample story (for the next person trying the app). Real accounts are untouched. */
   app.post('/api/demo/reset', async (req) => {
     const u = await actor(req, ['auditor']);
@@ -506,19 +588,29 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   app.get('/api/recycler/bids', async (req) => await bidsFor(db, (await actor(req, ['recycler'])).id));
   app.get('/api/market/lots', async (req) => {
     const u = await actor(req, ['recycler']);
-    const rows = await db.prepare("SELECT * FROM lot WHERE status = 'listed' ORDER BY seq DESC").all() as Row[];
-    return await Promise.all(rows.map(async (r) => ({
-      ...(await lotView(db, r)),
-      ...(await lotContext(r)),
+    const rows = (await db.prepare("SELECT * FROM lot WHERE status = 'listed' ORDER BY seq DESC").all() as Row[]).filter((r) => sameWorld(r.user_id, u.id));
+    return await Promise.all(rows.map(async (r) => {
+      // Buyers see what they need to bid, not where the worker lives: no GPS coordinates and no full address
+      // (both point at the worker's home or workshop), only the city and whether a location was recorded.
+      // The full lot, with GPS, stays visible to the worker and to auditors.
+      const { gps, user_id: _owner, ...lot } = await lotView(db, r);
+      const ctx = await lotContext(r);
+      return {
+      ...lot,
+      gps_recorded: !!gps,
+      workshop_address: ctx.workshop_address ? cityOf(ctx.workshop_address) : null,
+      expected: ctx.expected,
       top_bid: (((await offersFor(db, r.id)) as Row[])[0]?.amount as number | undefined) ?? null,
       my_bid: ((await db.prepare("SELECT amount FROM bid WHERE lot_id = ? AND recycler_id = ? AND status = 'open' ORDER BY seq DESC").get(r.id, u.id)) as Row | undefined)?.amount ?? null,
-    })));
+      };
+    }));
   });
   app.post<{ Params: { id: string } }>('/api/lots/:id/bids', async (req) => {
     const u = await actor(req, ['recycler']);
     const b = req.body as { amount: number; pickup_terms?: string; minutes?: number };
     // Protect workers from lowball offers: a bid must reach at least 80% of the lot's fair low estimate.
     const lotRow = await db.prepare('SELECT * FROM lot WHERE id = ?').get(req.params.id) as Row | undefined;
+    if (lotRow && !sameWorld(lotRow.user_id, u.id)) throw E(404, 'Lot not found');
     if (lotRow) {
       const floor = Math.round((await lotContext(lotRow)).expected.low * 0.8);
       if (floor > 0 && Number(b.amount) < floor) throw E(400, `Offer too low. The minimum for this lot is Rs ${floor}.`, 'bid_too_low');
@@ -528,7 +620,11 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
 
   // ---------- repair centre ----------
   app.get('/api/repair/guides', async () => await listGuides(db));
-  app.get('/api/repair/listings', async () => await listListings(db));
+  app.get('/api/repair/listings', async (req) => {
+    let me: unknown = null;
+    try { me = (await whoIs(req)).user?.id ?? null; } catch { /* not signed in: show real repairers */ }
+    return ((await listListings(db)) as Row[]).filter((l) => sameWorld(l.user_id, me));
+  });
   app.post('/api/repair/listings', async (req) => ({ id: await upsertListing(db, (await actor(req, ['repairer'])).id, req.body as any) }));
   app.get('/api/repair/mine', async (req) => {
     const u = await actor(req, ['repairer']);
@@ -570,13 +666,14 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
   // ---------- auditor ----------
   // CSV for auditors: every lot with its sale. Cells that start with = + - @ are quoted with ' so spreadsheets never run them as formulas.
   app.get('/api/auditor/export.csv', async (req, reply) => {
-    await actor(req, ['auditor']);
+    const aud = await actor(req, ['auditor']);
     const rows = await db.prepare(`SELECT l.id, l.created_at, w.name AS worker, l.items, l.weight_kg, l.steps_done, l.steps_total, l.status, l.hash,
         r.name AS buyer, b.amount, rr.stars
       FROM lot l JOIN app_user w ON w.id = l.user_id
       LEFT JOIN bid b ON b.lot_id = l.id AND b.status = 'accepted'
       LEFT JOIN app_user r ON r.id = b.recycler_id
       LEFT JOIN recycler_rating rr ON rr.lot_id = l.id
+      ${demoAuditor(aud) ? `WHERE l.user_id IN ${DEMO_IN}` : ''}
       ORDER BY l.created_at DESC`).all() as Row[];
     const cell = (v: unknown) => {
       let s = v == null ? '' : String(v);
@@ -590,8 +687,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     return '\uFEFF' + [head.join(','), ...body].join('\r\n');
   });
   app.get('/api/auditor/overview', async (req) => {
-    await actor(req, ['auditor']);
-    const workers = await db.prepare("SELECT id FROM app_user WHERE role = 'worker'").all() as Row[];
+    const aud = await actor(req, ['auditor']);
+    const workers = (await db.prepare("SELECT id FROM app_user WHERE role = 'worker'").all() as Row[]).filter((w) => !demoAuditor(aud) || isDemoId(w.id));
     const lots: Awaited<ReturnType<typeof lotView>>[] = [];
     for (const w of workers) {
       const ok = await chainStatus(db, w.id);
@@ -605,50 +702,59 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
         lots: lots.length, flagged: lots.filter(open).length, held: lots.filter((l) => l.status === 'held').length,
         total_kg: Math.round(lots.reduce((s, l) => s + l.weight_kg, 0) * 10) / 10,
         safety_pct: withSteps.length ? Math.round((100 * withSteps.reduce((s, l) => s + l.steps_done / l.steps_total, 0)) / withSteps.length) : null,
-        open_bids: (await db.prepare("SELECT COUNT(*) c FROM bid WHERE status = 'open' AND expires_at > ?").get(new Date().toISOString()) as Row).c,
+        open_bids: (await db.prepare(`SELECT COUNT(*) c FROM bid b JOIN lot l ON l.id = b.lot_id WHERE b.status = 'open' AND b.expires_at > ? ${demoAuditor(aud) ? `AND l.user_id IN ${DEMO_IN}` : ''}`).get(new Date().toISOString()) as Row).c,
       },
       lots,
     };
   });
   app.get<{ Params: { id: string } }>('/api/auditor/lots/:id', async (req) => {
-    await actor(req, ['auditor']);
+    const aud = await actor(req, ['auditor']);
     const l = await db.prepare('SELECT * FROM lot WHERE id = ?').get(req.params.id) as Row | undefined;
     if (!l) throw E(404, 'Lot not found');
+    auditorMay(aud, l.user_id);
     const view = await lotView(db, l);
     const related: { id: string; worker_name: string; created_at: string; shared: string[] }[] = [];
-    for (const o of await db.prepare('SELECT * FROM lot WHERE id != ?').all(l.id) as Row[]) {
+    for (const o of (await db.prepare('SELECT * FROM lot WHERE id != ?').all(l.id) as Row[]).filter((o) => !demoAuditor(aud) || isDemoId(o.user_id))) {
       const shared = (JSON.parse(o.photo_hashes) as string[]).filter((h) => view.photo_hashes.includes(h));
       if (shared.length) related.push({ id: o.id, worker_name: (await lotView(db, o)).worker_name, created_at: o.created_at, shared });
     }
     return { lot: view, related, offers: await offersFor(db, l.id), chain: (await chainDetail(db, l.user_id)).get(l.id) ?? { hash_ok: false, link_ok: false } };
   });
-  app.post<{ Params: { id: string } }>('/api/auditor/lots/:id/hold', async (req) => { await actor(req, ['auditor']); await holdLot(db, req.params.id); return { ok: true }; });
-  app.post<{ Params: { id: string } }>('/api/auditor/lots/:id/release', async (req) => { await actor(req, ['auditor']); await releaseLot(db, req.params.id); return { ok: true }; });
+  /** The auditor, after checking a demo auditor only touches demo lots. */
+  const lotAuditor = async (req: FastifyRequest, lotId: string) => {
+    const aud = await actor(req, ['auditor']);
+    const l = await db.prepare('SELECT user_id FROM lot WHERE id = ?').get(lotId) as Row | undefined;
+    if (l) auditorMay(aud, l.user_id);
+    return aud;
+  };
+  app.post<{ Params: { id: string } }>('/api/auditor/lots/:id/hold', async (req) => { await lotAuditor(req, req.params.id); await holdLot(db, req.params.id); return { ok: true }; });
+  app.post<{ Params: { id: string } }>('/api/auditor/lots/:id/release', async (req) => { await lotAuditor(req, req.params.id); await releaseLot(db, req.params.id); return { ok: true }; });
   app.post<{ Params: { id: string } }>('/api/auditor/lots/:id/recheck', async (req) => {
-    await actor(req, ['auditor']);
+    await lotAuditor(req, req.params.id);
     await requestRecheck(db, req.params.id, String((req.body as any)?.note ?? ''));
     return { ok: true };
   });
   app.get('/api/auditor/workers', async (req) => {
-    await actor(req, ['auditor']);
+    const aud = await actor(req, ['auditor']);
     const rows = await db.prepare("SELECT u.id, u.name, u.phone, w.name AS workshop, w.address, (SELECT COUNT(*) FROM lot WHERE user_id = u.id) AS lots, (SELECT COUNT(*) FROM flag f JOIN lot l ON l.id = f.lot_id WHERE l.user_id = u.id AND f.status = 'open') AS open_flags FROM app_user u LEFT JOIN workshop w ON w.id = u.workshop_id WHERE u.role = 'worker' AND u.approval <> 'rejected'").all() as Row[];
-    return rows.map(({ address, ...r }) => ({ ...r, name_flagged: offensive(r.name) || offensive(r.workshop) || offensive(address) }));
+    return rows.filter((r) => !demoAuditor(aud) || isDemoId(r.id)).map(({ address, ...r }) => ({ ...r, name_flagged: offensive(r.name) || offensive(r.workshop) || offensive(address) }));
   });
   app.get('/api/auditor/recyclers', async (req) => {
-    await actor(req, ['auditor']);
+    const aud = await actor(req, ['auditor']);
     const rows = await db.prepare("SELECT u.id, u.name, COUNT(b.id) AS bids, COALESCE(SUM(CASE WHEN b.status='accepted' THEN 1 ELSE 0 END),0) AS accepted FROM app_user u LEFT JOIN bid b ON b.recycler_id = u.id WHERE u.role = 'recycler' AND u.approval <> 'rejected' GROUP BY u.id").all() as Row[];
-    return rows.map((r) => ({ ...r, name_flagged: offensive(r.name) }));
+    return rows.filter((r) => !demoAuditor(aud) || isDemoId(r.id)).map((r) => ({ ...r, name_flagged: offensive(r.name) }));
   });
   app.get('/api/auditor/approvals', async (req) => {
-    await actor(req, ['auditor']);
+    const aud = await actor(req, ['auditor']);
     const rows = await db.prepare("SELECT u.id, u.role, u.name, u.phone, u.approval, u.created_at, w.name AS workshop, w.address FROM app_user u LEFT JOIN workshop w ON w.id = u.workshop_id WHERE u.role IN ('recycler','repairer') AND u.approval <> 'approved' AND u.name <> 'Removed account' ORDER BY u.created_at DESC").all() as Row[];
-    return rows.map(({ workshop, ...r }) => ({ ...r, name_flagged: offensive(r.name) || offensive(workshop) || offensive(r.address) }));
+    return rows.filter((r) => !demoAuditor(aud) || isDemoId(r.id)).map(({ workshop, ...r }) => ({ ...r, name_flagged: offensive(r.name) || offensive(workshop) || offensive(r.address) }));
   });
   /** Remove a fake or abusive account: delete what it made, blank the name and workshop, block its phone and email, and delete its sign-in. */
   app.post<{ Params: { id: string } }>('/api/auditor/users/:id/remove', async (req) => {
     const me = await actor(req, ['auditor']);
     const target = await db.prepare('SELECT * FROM app_user WHERE id = ?').get(req.params.id) as Row | undefined;
     if (!target || !['worker', 'recycler', 'repairer'].includes(target.role)) throw E(404, 'Account not found');
+    auditorMay(me, target.id);
     const reason = String((req.body as Row | undefined)?.reason ?? '').trim().slice(0, 200) || null;
     const now = new Date().toISOString();
     // demo accounts are shared by everyone trying the app: removing one blanks it until the next demo reset, but never blocks or deletes its sign-in
@@ -665,7 +771,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     return { ok: true, photos_removed: removed };
   });
   app.post<{ Params: { id: string } }>('/api/auditor/users/:id/approval', async (req) => {
-    await actor(req, ['auditor']);
+    auditorMay(await actor(req, ['auditor']), req.params.id);
     const decision = (req.body as Row | undefined)?.decision;
     if (!['approved', 'rejected'].includes(decision)) throw E(400, 'decision must be approved or rejected');
     const r = await db.prepare("UPDATE app_user SET approval = ? WHERE id = ? AND role IN ('recycler','repairer')").run(decision, req.params.id);
@@ -677,7 +783,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     return { rates: await db.prepare('SELECT * FROM rate ORDER BY city, material').all(), stale: await staleRates(db, new Date(), 7) };
   });
   app.put('/api/auditor/rates', async (req) => {
-    await actor(req, ['auditor']);
+    noDemoEdits(await actor(req, ['auditor']));
     const b = req.body as { material: string; city: string; rate_per_kg: number; source?: string };
     await setRate(db, b.material, b.city, Number(b.rate_per_kg), b.source?.trim() || 'Auditor edit');
     return { ok: true };

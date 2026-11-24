@@ -20,7 +20,7 @@ function Confidence({ value }: { value: number }) {
     <div>
       <div className="mb-1 flex items-baseline justify-between">
         <span className="text-sm font-medium text-mute">{t('confidence')}</span>
-        <span className="num text-base font-semibold">{pct(value)} · {t('conf_' + level)}</span>
+        <span className="num text-base font-semibold">{pct(value)}, {t('conf_' + level)}</span>
       </div>
       <Meter value={value} label={t('confidence')} valueText={`${pct(value)}, ${t('conf_' + level)}`} tone={level === 'high' ? 'ok' : 'amber'} />
       <p className="mt-1 text-sm text-mute">{t('not_certain')}</p>

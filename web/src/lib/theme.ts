@@ -7,7 +7,7 @@ export function getTheme(): Theme {
 }
 export function applyTheme(t: Theme) {
   document.documentElement.dataset.theme = t
-  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'dark' ? '#000000' : '#F5F3EE')
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'dark' ? '#000000' : '#F3F4F2')
   try { localStorage.setItem(KEY, t) } catch { /* ignore */ }
 }
 

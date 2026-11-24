@@ -3,6 +3,7 @@ const BASE = ((import.meta.env.VITE_API_URL as string | undefined) ?? '').replac
 export const apiUrl = (path: string) => BASE + path
 
 import { supabase } from './supabase.ts'
+import { getGuest } from './guest.ts'
 
 const KEY = 'um_user'
 export const DEFAULT_USER = 'u-worker-1'
@@ -21,10 +22,16 @@ export class ApiError extends Error {
   constructor(message: string, status: number, code?: string) { super(message); this.status = status; this.code = code }
 }
 
-/** Signed in: the Supabase access token (refreshed automatically). Demo mode: the sample user id. */
+/**
+ * Who is asking. In the guided Demo mode: the guest pass (lib/guest.ts). Signed in: the Supabase access token
+ * (refreshed automatically). Local demo without Supabase: the sample user id.
+ */
 async function headers(json: boolean): Promise<Record<string, string>> {
   const h: Record<string, string> = json ? { 'content-type': 'application/json' } : {}
-  if (supabase) {
+  const guest = getGuest()
+  if (guest) {
+    h['x-demo-guest'] = guest.token
+  } else if (supabase) {
     const { data } = await supabase.auth.getSession()
     if (data.session) h.authorization = `Bearer ${data.session.access_token}`
   } else {

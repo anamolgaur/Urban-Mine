@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { api, setUserId, ApiError } from './api.ts'
+import { getGuest, startGuest, clearGuest, type DemoRole } from './guest.ts'
 import { supabase } from './supabase.ts'
 import { clearPhotoUrls } from './photoUrls.ts'
 import type { Me, NeedsOnboarding } from './types.ts'
@@ -16,8 +17,14 @@ type Ctx = {
   loginAs: (id: string) => void
   reload: () => void
   signOut: () => Promise<void>
+  /** Guided Demo mode: become the demo account for this role (no account needed). Resolves when the app has switched. */
+  startDemo: (role: DemoRole) => Promise<void>
+  /** Leave the guided Demo mode and go back to the sign-in screen. */
+  exitDemo: () => Promise<void>
+  /** The role the guided Demo mode is showing, or null when not in it. */
+  demoRole: DemoRole | null
 }
-const SessionCtx = createContext<Ctx>({ status: 'loading', me: null, phone: null, error: null, loginAs: () => {}, reload: () => {}, signOut: async () => {} })
+const SessionCtx = createContext<Ctx>({ status: 'loading', me: null, phone: null, error: null, loginAs: () => {}, reload: () => {}, signOut: async () => {}, startDemo: async () => {}, exitDemo: async () => {}, demoRole: null })
 export const useSession = () => useContext(SessionCtx)
 
 /**
@@ -34,7 +41,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let live = true
     ;(async () => {
-      if (supabase) {
+      // in the guided Demo mode the guest pass stands in for a sign-in
+      if (supabase && !getGuest()) {
         const { data } = await supabase.auth.getSession()
         if (!data.session) { if (live) { setMe(null); setStatus('signed_out') } return }
       }
@@ -45,6 +53,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         if (r.user) { setMe(r); setStatus('ready') } else { setMe(null); setPhone(r.phone ?? r.email ?? null); setStatus('needs_onboarding') }
       } catch (e) {
         if (!live) return
+        // the demo pass ran out (2 hours) or the server restarted with a new key: quietly get a fresh one for the same role
+        if (e instanceof ApiError && e.code === 'guest_expired') {
+          const g = getGuest()
+          clearGuest()
+          if (g) { try { await startGuest(g.role); setTick((t) => t + 1); return } catch { /* fall through to signed out */ } }
+          setMe(null); setStatus('signed_out'); return
+        }
         if (supabase && e instanceof ApiError && e.status === 401) { await supabase.auth.signOut().catch(() => {}); setMe(null); setStatus('signed_out'); return }
         setError((e as Error).message); setStatus('error')
       }
@@ -61,7 +76,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const loginAs = useCallback((id: string) => { clearPhotoUrls(); setUserId(id); setMe(null); setStatus('loading'); setTick((t) => t + 1) }, [])
   const reload = useCallback(() => setTick((t) => t + 1), [])
+  const [demoRole, setDemoRole] = useState<DemoRole | null>(() => getGuest()?.role ?? null)
+  const startDemo = useCallback(async (role: DemoRole) => {
+    await startGuest(role)
+    clearPhotoUrls() // photos of the last account must not show in the next one
+    setDemoRole(role); setMe(null); setStatus('loading'); setTick((t) => t + 1)
+  }, [])
   const signOut = useCallback(async () => {
+    clearGuest(); setDemoRole(null)
     if (supabase) await supabase.auth.signOut().catch(() => {})
     // a shared phone: the next person must not see the last user's saved lots
     await caches?.delete('api').catch(() => {})
@@ -69,5 +91,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     clearPhotoUrls()
     setMe(null); setPhone(null); setStatus('signed_out')
   }, [])
-  return <SessionCtx.Provider value={{ status, me, phone, error, loginAs, reload, signOut }}>{children}</SessionCtx.Provider>
+  const exitDemo = signOut
+  return <SessionCtx.Provider value={{ status, me, phone, error, loginAs, reload, signOut, startDemo, exitDemo, demoRole }}>{children}</SessionCtx.Provider>
 }

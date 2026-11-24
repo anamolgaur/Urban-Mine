@@ -144,7 +144,7 @@ export default function Result() {
             {/* One number, big, and it can be read aloud: for people who do not read much. */}
             <section className="mt-5 rounded-3xl bg-white shadow-card" aria-label={t('baseline_title')}>
               <div className="p-4 text-center">
-                <p className="text-sm font-medium text-mute">{t('baseline_title')} · {t('for_items', { n: qty })}</p>
+                <p className="text-sm font-medium text-mute">{t('baseline_title')}, {t('for_items', { n: qty })}</p>
                 <p className="num mt-2 text-6xl font-semibold leading-none"><span className="inline-block border-b-4 border-amber/70 px-1 pb-2">{inr(baseline)}</span></p>
                 <p className="mt-3 text-base leading-snug text-mute">{t('baseline_note')}</p>
                 <div className="mt-3">
@@ -169,7 +169,7 @@ export default function Result() {
               <summary className="flex min-h-12 cursor-pointer items-center gap-2 px-3 text-base font-semibold"><Icon name="info" size={18} />{t('details_show')}</summary>
               <div className="px-3 pb-4">
             <section aria-label={t('price_estimate')} className="mt-2 rounded-2xl border border-hair bg-white p-3">
-              <p className="text-sm font-medium text-mute">{t('price_range')} · {t('for_items', { n: qty })}</p>
+              <p className="text-sm font-medium text-mute">{t('price_range')}, {t('for_items', { n: qty })}</p>
               <p className="num mt-1 text-3xl font-semibold leading-tight">
                 <span className="inline-block border-b-4 border-amber/70 pb-1">{inr(e.low * qty)}</span><span className="px-1 text-mute">–</span><span className="inline-block border-b-4 border-amber/70 pb-1">{inr(e.high * qty)}</span>
               </p>

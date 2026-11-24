@@ -98,7 +98,7 @@ export function OpenJob({ job, busy, run }: { job: Job; busy: boolean; run: (fn:
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <p className="text-xl font-bold leading-tight">{job.note || (job.device_type ? t('type.' + job.device_type) : t('job_unnamed'))}</p>
-          <p className="text-sm text-mute">{job.created_at ? t('started', { date: dateShort(job.created_at) }) : ''}{guide ? ` · ${pick(guide.fault)}` : ''}</p>
+          <p className="text-sm text-mute">{job.created_at ? t('started', { date: dateShort(job.created_at) }) : ''}{guide ? `, ${pick(guide.fault)}` : ''}</p>
         </div>
         <Tag tone="amber">{t('stat_in_progress')}</Tag>
       </div>
@@ -186,7 +186,7 @@ export function DoneJob({ job }: { job: Job }) {
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <p className="text-lg font-bold leading-tight">{job.note || (job.device_type ? t('type.' + job.device_type) : t('job_unnamed'))}</p>
-          <p className="text-sm text-mute">{job.completed_at ? t('finished', { date: dateShort(job.completed_at) }) : ''}{job.diary.minutes ? ` · ${t('minutes_n', { n: job.diary.minutes })}` : ''}</p>
+          <p className="text-sm text-mute">{job.completed_at ? t('finished', { date: dateShort(job.completed_at) }) : ''}{job.diary.minutes ? `, ${t('minutes_n', { n: job.diary.minutes })}` : ''}</p>
         </div>
         <Tag tone={o === 'not_fixed' ? 'bad' : o === 'partly' ? 'amber' : 'ok'}>{t(o ? 'outcome_' + o : 'job_completed')}</Tag>
       </div>

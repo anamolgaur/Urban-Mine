@@ -14,7 +14,8 @@ import Photo from '../../components/Photo.tsx'
 import Icon from '../../components/Icon.tsx'
 import { lotTitle } from '../worker/Lots.tsx'
 
-type MarketLot = Lot & { top_bid: number | null; my_bid: number | null; workshop_address: string | null; expected: { low: number; high: number } }
+/** A lot as buyers see it: the city only (in workshop_address) and whether a location was recorded, never the GPS point itself. */
+type MarketLot = Lot & { top_bid: number | null; my_bid: number | null; workshop_address: string | null; gps_recorded?: boolean; expected: { low: number; high: number } }
 type RBid = {
   id: string; lot_id: string; amount: number; pickup_terms: string; expires_at: string; status: 'open' | 'accepted' | 'rejected' | 'expired'
   items: LotItem[]; weight_kg: number; short_hash: string; lot_status: string; worker_name: string; seconds_left: number
@@ -63,19 +64,19 @@ function BidForm({ lot, onDone }: { lot: MarketLot; onDone: () => void }) {
 function Detail({ lot, onDone }: { lot: MarketLot; onDone: () => void }) {
   const { t } = useLang()
   return (
-    <aside className="rounded-3xl bg-white shadow-card" aria-label={t('lot_detail')}>
+    <aside data-tour="bid" className="rounded-3xl bg-white shadow-card" aria-label={t('lot_detail')}>
       <div className="border-b border-hair p-3">
         <p className="text-sm font-medium text-mute">{t('lot_detail')}</p>
         <p className="text-xl font-bold leading-tight">{lotTitle(lot, t)}</p>
-        <p className="num text-sm text-mute">{t('lot_id')} {lot.id.slice(0, 8).toUpperCase()} · #{lot.short_hash}</p>
+        <p className="num text-sm text-mute">{t('lot_id')} {lot.id.slice(0, 8).toUpperCase()}, #{lot.short_hash}</p>
       </div>
       <div className="p-3">
-        <p className="mb-1 text-sm font-medium text-mute">{t('photo_evidence')} · {t('photos_n', { n: lot.photo_hashes.length })}</p>
+        <p className="mb-1 text-sm font-medium text-mute">{t('photo_evidence')}, {t('photos_n', { n: lot.photo_hashes.length })}</p>
         <div className="grid grid-cols-3 gap-2">{lot.photo_hashes.slice(0, 6).map((h) => <Photo key={h} hash={h} />)}</div>
         <dl className="mt-3 divide-y divide-hair">
           <KV k={t('col_seller')} v={lot.worker_name} />
-          <KV k={t('seller_location')} v={lot.workshop_address?.replace('SAMPLE: ', '') ?? '–'} />
-          <KV k={t('gps_label')} v={lot.gps ? <span className="num">{lot.gps.lat.toFixed(3)}, {lot.gps.lng.toFixed(3)}</span> : <Tag>{t('no_gps')}</Tag>} />
+          <KV k={t('seller_location')} v={lot.workshop_address ?? '–'} />
+          <KV k={t('gps_label')} v={lot.gps_recorded ? <Tag tone="ok">{t('gps_recorded')}</Tag> : <Tag>{t('no_gps')}</Tag>} />
           <KV k={t('col_weight')} v={kg(lot.weight_kg)} mono />
           <KV k={t('col_safety')} v={`${lot.steps_done}/${lot.steps_total}`} mono />
           <KV k={t('hash_status')} v={lot.chain_ok ? <Tag tone="ok">✓ {t('chain_ok')}</Tag> : <Tag tone="bad">{t('chain_bad')}</Tag>} />
@@ -200,7 +201,7 @@ function MyOffers() {
                 const secs = Math.max(0, Math.round((Date.parse(b.expires_at) - now) / 1000))
                 return (
                   <tr key={b.id} className="border-b border-hair">
-                    <td className="px-3 py-3"><span className="num font-semibold">#{b.short_hash}</span><div className="text-sm text-mute">{itemsTitle(b.items, t)} · {kg(b.weight_kg)}</div></td>
+                    <td className="px-3 py-3"><span className="num font-semibold">#{b.short_hash}</span><div className="text-sm text-mute">{itemsTitle(b.items, t)}, {kg(b.weight_kg)}</div></td>
                     <td className="px-3 py-3">{b.worker_name}</td>
                     <td className="num px-3 py-3 text-right font-semibold">{inr(b.amount)}</td>
                     <td className="px-3 py-3">{b.pickup_terms || '–'}</td>
@@ -216,7 +217,7 @@ function MyOffers() {
         <>
           <H2>{t('past_bids')}</H2>
           <ul className="divide-y divide-hair border-y border-hair bg-white">
-            {past.map((b) => <li key={b.id} className="flex min-h-12 items-center justify-between gap-2 px-3 py-2 text-base"><span><span className="num font-semibold">#{b.short_hash}</span> · {itemsTitle(b.items, t)}</span><span className="flex items-center gap-2"><span className="num">{inr(b.amount)}</span><Tag>{t('bid.' + (b.status === 'open' ? 'expired' : b.status))}</Tag></span></li>)}
+            {past.map((b) => <li key={b.id} className="flex min-h-12 items-center justify-between gap-2 px-3 py-2 text-base"><span><span className="num font-semibold">#{b.short_hash}</span>, {itemsTitle(b.items, t)}</span><span className="flex items-center gap-2"><span className="num">{inr(b.amount)}</span><Tag>{t('bid.' + (b.status === 'open' ? 'expired' : b.status))}</Tag></span></li>)}
           </ul>
         </>
       )}
@@ -290,7 +291,7 @@ export default function Recycler() {
         <dl className="mt-3 grid grid-cols-3 gap-3 rounded-2xl border border-hair bg-white p-3">
           <Stat label={t('sum_available')} value={lots.data?.length ?? '–'} />
           <Stat label={t('sum_active')} value={bids.data ? active : '–'} />
-          <Stat label={t('sum_bought')} value={bids.data ? `${bought.length} · ${inr(bought.reduce((s, b) => s + b.amount, 0))}` : '–'} note={<SampleTag />} />
+          <Stat label={t('sum_bought')} value={bids.data ? `${bought.length}, ${inr(bought.reduce((s, b) => s + b.amount, 0))}` : '–'} note={<SampleTag />} />
         </dl>
         <div className="mt-4">
           {tab === 'market' && <Market />}

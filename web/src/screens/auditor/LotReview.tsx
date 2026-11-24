@@ -30,7 +30,7 @@ export default function LotReview() {
 
   return (
     <>
-      <dl className="grid grid-cols-2 rounded-2xl border border-hair bg-white sm:grid-cols-3 lg:grid-cols-6">
+      <dl data-tour="kpis" className="grid grid-cols-2 rounded-2xl border border-hair bg-white sm:grid-cols-3 lg:grid-cols-6">
         {kpis.map(([label, v, warn]) => (
           <div key={label} className="border-b border-r border-hair p-3 last:border-r-0">
             <dt className="text-sm font-medium text-mute">{label}</dt>
@@ -115,7 +115,7 @@ export function LotDetail() {
       <div className="mt-1 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-2xl font-bold leading-tight">{lotTitle(lot, t)} <span className="num text-lg font-normal text-mute">#{lot.short_hash}</span></h2>
-          <p className="text-base text-mute">{lot.worker_name} · {kg(lot.weight_kg)} · {dateShort(lot.created_at)}{lot.gps ? ` · ${lot.gps.lat.toFixed(3)}, ${lot.gps.lng.toFixed(3)}` : ` · ${t('no_gps')}`}</p>
+          <p className="text-base text-mute">{lot.worker_name}, {kg(lot.weight_kg)}, {dateShort(lot.created_at)}{lot.gps ? `, ${lot.gps.lat.toFixed(3)}, ${lot.gps.lng.toFixed(3)}` : `, ${t('no_gps')}`}</p>
         </div>
         <p className="flex flex-wrap gap-1"><StatusChip status={lot.status} />{lot.chain_ok ? <Tag tone="ok">✓ {t('chain_ok')}</Tag> : <Tag tone="bad">✕ {t('chain_bad')}</Tag>}<Tag>{lot.steps_done}/{lot.steps_total} {t('safety_short')}</Tag></p>
       </div>
@@ -166,7 +166,7 @@ export function LotDetail() {
           </div>
           {related.map((r) => (
             <div key={r.id} className="mt-4 border-t border-hair pt-3">
-              <p className="mb-2 text-base font-semibold">{t('also_in')} <Link className="num inline-flex min-h-11 items-center underline" to={`/auditor/lot/${r.id}`}>#{r.id.slice(0, 8)}</Link> · {r.worker_name} · {dateShort(r.created_at)}</p>
+              <p className="mb-2 text-base font-semibold">{t('also_in')} <Link className="num inline-flex min-h-11 items-center underline" to={`/auditor/lot/${r.id}`}>#{r.id.slice(0, 8)}</Link>, {r.worker_name}, {dateShort(r.created_at)}</p>
               <div className="grid grid-cols-2 gap-2">{r.shared.map((h) => <Photo key={h} hash={h} />)}</div>
             </div>
           ))}

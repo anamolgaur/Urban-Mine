@@ -64,7 +64,7 @@ export default function Onboarding() {
       <Header title={t('ob_title')} back={false} brand />
       <main id="main" className="screen-enter px-4 pt-4">
         <Rail items={['col_role', 'ob_you', 'rail_confirm'].map((k, i) => ({ label: t(k), state: i < step ? 'done' : i === step ? 'now' : 'todo' }))} />
-        <p className="mt-2 text-sm text-mute">{t('step_of', { n: step + 1, m: 3 })}{phone ? ` · ${phone}` : ''}</p>
+        <p className="mt-2 text-sm text-mute">{t('step_of', { n: step + 1, m: 3 })}{phone ? `, ${phone}` : ''}</p>
 
         {step === 0 && (
           <>
@@ -131,6 +131,7 @@ export default function Onboarding() {
               <input type="checkbox" className="mt-1 h-6 w-6 shrink-0 accent-black" checked={consent} onChange={(e) => { setConsent(e.target.checked); setErr(null) }} />
               <span className="text-base leading-snug">{t('ob_consent')}</span>
             </label>
+            {/* new tab: going to the page in this tab would lose what the person has typed so far */}
           </>
         )}
 

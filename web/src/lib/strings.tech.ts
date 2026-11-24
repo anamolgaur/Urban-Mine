@@ -1,6 +1,6 @@
 // Original technical wording, shown when "Show technical terms" is on (demo mode only). [English, Hindi].
 export const TECH: Record<string, [string, string]> = {
-  sample: ['SAMPLE', 'SAMPLE · नमूना'],
+  sample: ['SAMPLE', 'SAMPLE (नमूना)'],
   api_down: ['Cannot reach the server. Start it with npm run dev:server. Detail:', 'सर्वर नहीं मिल रहा। इसे npm run dev:server से चलाएँ। विवरण:'],
   record_hash: ['Record hash', 'रिकॉर्ड हैश'],
   hash_note: ['The chain proves this record was not changed afterwards. It does not prove the first entry was true.', 'यह चेन साबित करती है कि रिकॉर्ड बाद में बदला नहीं गया। यह साबित नहीं करती कि पहली एंट्री सच थी।'],

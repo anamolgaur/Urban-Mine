@@ -55,7 +55,7 @@ export function Rail({ items }: { items: RailItem[] }) {
           </li>
         ))}
       </ol>
-      {now >= 0 && <p className="mt-2 text-sm font-medium text-mute">{now + 1} / {items.length} · <span className="text-ink">{items[now].label}</span></p>}
+      {now >= 0 && <p className="mt-2 text-sm font-medium text-mute">{now + 1} / {items.length}, <span className="text-ink">{items[now].label}</span></p>}
     </div>
   )
 }

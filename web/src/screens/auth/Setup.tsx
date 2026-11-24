@@ -43,7 +43,7 @@ export default function Setup({ onDone }: { onDone: () => void }) {
               <button key={th} role="radio" aria-checked={theme === th} onClick={() => pickTheme(th)}
                 className={`overflow-hidden rounded-3xl border-2 text-left ${theme === th ? 'border-brand' : 'border-hair'}`}>
                 {/* a tiny preview of the app in that theme */}
-                <span className="block p-3" style={{ background: th === 'dark' ? '#000000' : '#F5F3EE' }} aria-hidden>
+                <span className="block p-3" style={{ background: th === 'dark' ? '#000000' : '#F3F4F2' }} aria-hidden>
                   <span className="block h-14 rounded-2xl" style={{ background: '#2F7A50' }} />
                   <span className="mt-2 block h-8 rounded-xl" style={{ background: th === 'dark' ? '#141815' : '#FFFFFF' }} />
                   <span className="mt-2 block h-8 rounded-xl" style={{ background: th === 'dark' ? '#141815' : '#FFFFFF' }} />

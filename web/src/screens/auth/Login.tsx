@@ -2,6 +2,7 @@ import GetApp from '../../components/GetApp.tsx'
 import { useState, type FormEvent } from 'react'
 import { useLang } from '../../lib/i18n.tsx'
 import { supabase } from '../../lib/supabase.ts'
+import { useSession } from '../../lib/session.tsx'
 import { Header, Btn, Banner, inputCls } from '../../components/ui.tsx'
 import Icon from '../../components/Icon.tsx'
 
@@ -114,10 +115,35 @@ export default function Login() {
           </Btn>
         </div>
 
+        {/* Guided Demo mode: a walkthrough of every feature on shared sample accounts, no sign-up needed */}
+        <DemoStart />
+
         <p className="mt-5 flex gap-2 text-sm leading-snug text-mute"><Icon name="lock" size={18} className="mt-0.5 shrink-0" />{t('login_privacy')}</p>
         <p className="mt-2 flex gap-2 text-sm leading-snug text-mute"><Icon name="info" size={18} className="mt-0.5 shrink-0" />{t('stay_signed_in')}</p>
         <div className="mt-8"><GetApp compact /></div>
       </main>
+    </div>
+  )
+}
+
+/** "Try the demo" card. Only shown when Supabase is set up (the local demo already has its own sample-user picker). */
+function DemoStart() {
+  const { t } = useLang()
+  const { startDemo } = useSession()
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
+  if (!supabase) return null
+  const start = async () => {
+    setBusy(true); setErr(null)
+    // always begin at step 1, even if an earlier demo in this tab stopped halfway
+    try { sessionStorage.setItem('um_guide_step', '0'); await startDemo('worker') } catch (e) { setErr((e as Error).message); setBusy(false) }
+  }
+  return (
+    <div className="mt-4 rounded-2xl border border-hair bg-white p-4">
+      <p className="text-lg font-semibold">{t('dg_try_t')}</p>
+      <p className="mb-3 text-base text-mute">{t('dg_try_b')}</p>
+      <Btn variant="secondary" icon="chevR" disabled={busy} onClick={start}>{busy ? t('loading') : t('dg_try')}</Btn>
+      {err && <p className="mt-2 text-sm text-bad" role="alert">{err}</p>}
     </div>
   )
 }

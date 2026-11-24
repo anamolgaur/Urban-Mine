@@ -49,7 +49,7 @@ export function RepairerJobs() {
           <div className="mt-3"><Banner icon="info">{t('repairer_note')}</Banner></div>
 
           <H2>{t('start_job')}</H2>
-          <StartJob busy={busy} run={run} />
+          <div data-tour="start-job"><StartJob busy={busy} run={run} /></div>
           {err && <ErrorNote message={err} />}
 
           <H2>{t('in_progress_title')}</H2>

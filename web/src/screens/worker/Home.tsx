@@ -51,7 +51,7 @@ export default function Home() {
         <span className="inline-flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-brand text-2xl font-bold text-onbrand" aria-hidden>{name.charAt(0)}</span>
         <div className="min-w-0">
           <p className="truncate text-lg font-bold leading-tight">{t('hello', { name })}</p>
-          <p className="flex items-center gap-1 text-sm text-mute"><Icon name="pin" size={14} />{me?.workshop?.name.replace('SAMPLE ', '')} · {me?.city}</p>
+          <p className="flex items-center gap-1 text-sm text-mute"><Icon name="pin" size={14} />{me?.workshop?.name.replace('SAMPLE ', '')}, {me?.city}</p>
         </div>
       </div>
 

@@ -20,7 +20,7 @@ export function LotRow({ lot }: { lot: Lot }) {
         <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-hair bg-white"><Icon name={first} size={26} /></span>
         <div className="min-w-0 flex-1">
           <p className="truncate text-base font-bold">{lotTitle(lot, t)}</p>
-          <p className="mt-0.5 text-sm text-mute">{kg(lot.weight_kg)} · {dateShort(lot.created_at)}</p>
+          <p className="mt-0.5 text-sm text-mute">{kg(lot.weight_kg)}, {dateShort(lot.created_at)}</p>
           <p className="mt-1 flex flex-wrap items-center gap-1">
             <StatusChip status={lot.status} />
             {lot.status === 'sold' && lot.sale_amount !== null && <span className="num text-sm font-semibold">{inr(lot.sale_amount)}</span>}

@@ -2,13 +2,13 @@
 
 @theme {
   --color-ink: #1F2421;
-  --color-paper: #F5F3EE;
-  --color-hair: #E3DED3;
+  --color-paper: #F3F4F2; /* neutral grey-white, not cream */
+  --color-hair: #DFE3DF;
   --color-amber: #E8A317;
   --color-ok: #1E5B3A;
   --color-bad: #B3261E;
   --color-mute: #545C57;
-  --color-sunk: #EFECE5;
+  --color-sunk: #E9ECE8;
   --color-brand: #1E5B3A;
   --color-brand-soft: #EAF2EC;
   --color-gold-soft: #FDF3DC;
@@ -41,6 +41,8 @@
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 6px 18px -8px rgb(0 0 0 / 0.6);
 }
 :root[data-theme='dark'] .text-brand { color: #7CCB9C; }
+/* Rating stars: the bright amber is only 2.2:1 on white in the light theme; icons need 3:1 (WCAG 1.4.11). Darker amber there. */
+:root:not([data-theme='dark']) .text-amber { color: #B07A00; }
 
 /* Base styles must live in a layer, otherwise they override Tailwind utilities (e.g. text-paper on a button). */
 @layer base {

@@ -86,7 +86,7 @@ export default function Offers() {
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-xl font-bold leading-tight">{lotTitle(l, t)}</p>
-                <p className="text-sm text-mute">{kg(l.weight_kg)} · {dateShort(l.created_at)}</p>
+                <p className="text-sm text-mute">{kg(l.weight_kg)}, {dateShort(l.created_at)}</p>
               </div>
               <StatusChip status={l.status} />
             </div>
@@ -139,7 +139,7 @@ export default function Offers() {
                       <div className="flex items-start justify-between gap-2 p-3">
                         <div className="min-w-0">
                           <p className="flex items-center gap-1 text-lg font-bold leading-tight"><Icon name="shield" size={18} />{o.recycler_name}</p>
-                          {o.rating ? <p className="text-sm text-mute"><span className="text-amber">★</span> {o.rating.avg} · {t('n_ratings', { n: o.rating.count })}</p> : <p className="text-sm text-mute">{t('no_ratings')}</p>}
+                          {o.rating ? <p className="text-sm text-mute"><span className="text-amber">★</span> {o.rating.avg}, {t('n_ratings', { n: o.rating.count })}</p> : <p className="text-sm text-mute">{t('no_ratings')}</p>}
                           <p className="mt-0.5 text-sm text-mute">{t('buyer_authorised')}</p>
                           <p className="mt-1 flex items-start gap-1 text-base leading-snug"><Icon name="pin" size={16} className="mt-1 shrink-0" />{o.pickup_terms || '–'}</p>
                         </div>
