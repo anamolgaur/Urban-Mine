@@ -1,5 +1,6 @@
 import type { Db } from './db.ts';
 import { applyCondition, type Grade } from './condition.ts';
+import { PARTS_VALUE, PARTS_SOURCE, isTier } from './resale.ts';
 
 type Row = Record<string, any>;
 export type Composition = Record<string, number>; // material -> grams
@@ -7,7 +8,9 @@ export type RateInfo = { rate: number; prev: number | null; change: number | nul
 export type PriceLine = { material: string; grams: number; value: number };
 export type Estimate = {
   lines: PriceLine[]; total: number; low: number; high: number;
-  basis: 'model' | 'type'; sample: true; weight_kg: number;
+  basis: 'model' | 'type' | 'parts'; sample: true; weight_kg: number;
+  /** Dead phones and laptops: what they sell for per piece, for their parts. low/high above already include it. */
+  parts?: { tier: string; low: number; high: number; metal_low: number; metal_high: number; source: string };
   /** Set when a photo-check grade scaled the range. The totals and material values above are not scaled. */
   condition?: { grade: Grade; factor: number };
 };
@@ -52,15 +55,30 @@ export async function typeComposition(db: Db, type: string): Promise<Composition
   return sum;
 }
 
+// Phone and tablet boards are high grade (gold, palladium); laptop and PC boards are not. Use the phone board rate when there is one.
+const HIGH_GRADE_BOARD = new Set(['phone', 'tablet']);
+const withBoardGrade = (rates: Record<string, RateInfo>, type?: string) =>
+  type && HIGH_GRADE_BOARD.has(type) && rates.pcb_mobile ? { ...rates, pcb: rates.pcb_mobile } : rates;
+
+// Dead phones and laptops sell per piece, for their parts; the metal value is only the floor.
+const PARTS_TYPES: Record<string, string> = { phone: 'budget', laptop: 'basic' };
+function withParts(e: Estimate, type: string | undefined, tier: unknown): Estimate {
+  if (!type || !(type in PARTS_TYPES)) return e;
+  const t = isTier(tier) && (type === 'laptop') === ['basic', 'business', 'premium'].includes(tier) ? tier : PARTS_TYPES[type];
+  const band = PARTS_VALUE[t];
+  const low = Math.max(e.low, band.low), high = Math.max(e.high, band.high);
+  return { ...e, basis: 'parts', low, high, total: r2((low + high) / 2), parts: { tier: t, low: band.low, high: band.high, metal_low: e.low, metal_high: e.high, source: PARTS_SOURCE } };
+}
+
 /** Estimate by exact model if known, otherwise by device type. Returns null if neither is in the table. */
-export async function estimate(db: Db, city: string, opts: { modelId?: string | null; type?: string; grade?: unknown }): Promise<Estimate | null> {
+export async function estimate(db: Db, city: string, opts: { modelId?: string | null; type?: string; grade?: unknown; tier?: unknown }): Promise<Estimate | null> {
   const rates = await getRates(db, city);
   if (opts.modelId) {
-    const m = await db.prepare('SELECT composition_json FROM device_model WHERE id = ?').get(opts.modelId) as Row | undefined;
-    if (m) return applyCondition(priceComposition(JSON.parse(m.composition_json), rates, 'model'), opts.grade);
+    const m = await db.prepare('SELECT type, composition_json FROM device_model WHERE id = ?').get(opts.modelId) as Row | undefined;
+    if (m) return applyCondition(withParts(priceComposition(JSON.parse(m.composition_json), withBoardGrade(rates, m.type), 'model'), m.type, opts.tier), opts.grade);
   }
   const comp = opts.type ? await typeComposition(db, opts.type) : null;
-  return comp ? applyCondition(priceComposition(comp, rates, 'type'), opts.grade) : null;
+  return comp ? applyCondition(withParts(priceComposition(comp, withBoardGrade(rates, opts.type), 'type'), opts.type, opts.tier), opts.grade) : null;
 }
 
 /** Rows not updated within maxDays, for the auditor's stale-rate view. */

@@ -43,15 +43,47 @@ test('type-only estimate averages models of that type', async () => {
 });
 
 test('estimate prefers the model, falls back to type, returns null for unknown', async () => {
-  assert.equal((await estimate(db, 'Delhi', { modelId: 'ph-arka-a1', type: 'phone' }))!.basis, 'model');
-  assert.equal((await estimate(db, 'Delhi', { modelId: 'nope', type: 'phone' }))!.basis, 'type');
+  // chargers have no parts value: the plain metal estimate shows which composition was used
+  assert.equal((await estimate(db, 'Delhi', { modelId: 'chg-volt-20', type: 'charger' }))!.basis, 'model');
+  assert.equal((await estimate(db, 'Delhi', { modelId: 'nope', type: 'charger' }))!.basis, 'type');
+  // a dead phone uses its own model's metals as the floor under the parts value
+  const m = (await estimate(db, 'Delhi', { modelId: 'ph-arka-a1', type: 'phone' }))!;
+  const t = (await estimate(db, 'Delhi', { modelId: 'nope', type: 'phone' }))!;
+  assert.equal(m.basis, 'parts');
+  assert.notDeepEqual(m.lines, t.lines);
   assert.equal(await estimate(db, 'Delhi', { type: 'spaceship' }), null);
 });
 
 test('the same device is cheaper in Kolkata (sample city factor)', async () => {
-  const d = (await estimate(db, 'Delhi', { modelId: 'lap-nova-14' }))!.total;
-  const k = (await estimate(db, 'Kolkata', { modelId: 'lap-nova-14' }))!.total;
-  assert.ok(k < d);
+  const d = (await estimate(db, 'Delhi', { modelId: 'lap-nova-14' }))!;
+  const k = (await estimate(db, 'Kolkata', { modelId: 'lap-nova-14' }))!;
+  assert.ok(k.parts!.metal_low < d.parts!.metal_low, 'the metal value follows the city rate');
+});
+
+test('a dead phone is priced by its parts, with the metal value as the floor; better phones fetch more', async () => {
+  const budget = (await estimate(db, 'Delhi', { type: 'phone' }))!;
+  assert.equal(budget.parts!.tier, 'budget');
+  assert.ok(budget.low >= 100 && budget.high >= 300, 'at least the budget parts band');
+  assert.ok(budget.low >= budget.parts!.metal_low);
+  const flagship = (await estimate(db, 'Delhi', { type: 'phone', tier: 'flagship' }))!;
+  assert.ok(flagship.low > budget.high, 'a dead flagship is worth more than a dead budget phone');
+  const keypad = (await estimate(db, 'Delhi', { type: 'phone', tier: 'keypad' }))!;
+  assert.ok(keypad.high < budget.high);
+  // a laptop tier on a phone is ignored
+  assert.equal((await estimate(db, 'Delhi', { type: 'phone', tier: 'premium' }))!.parts!.tier, 'budget');
+  // types without a parts market keep the plain metal estimate
+  assert.equal((await estimate(db, 'Delhi', { type: 'charger' }))!.parts, undefined);
+});
+
+test('phone circuit boards are valued at the high-grade board rate, laptop boards are not', async () => {
+  const rates = await getRates(db, 'Delhi');
+  assert.ok(rates.pcb_mobile.rate > rates.pcb.rate * 3);
+  const phone = (await estimate(db, 'Delhi', { type: 'phone' }))!;
+  const board = phone.lines.find((l) => l.material === 'pcb')!;
+  assert.equal(board.value, Math.round((board.grams / 1000) * rates.pcb_mobile.rate * 100) / 100);
+  const laptop = (await estimate(db, 'Delhi', { type: 'laptop' }))!;
+  const lb = laptop.lines.find((l) => l.material === 'pcb')!;
+  assert.equal(lb.value, Math.round((lb.grams / 1000) * rates.pcb.rate * 100) / 100);
 });
 
 test('stale rows are found by age', async () => {

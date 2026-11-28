@@ -20,9 +20,13 @@ export type ScanResult = { scanId: string; type: string; typeConfidence: number;
 export type RateInfo = { rate: number; prev: number | null; change: number | null; updated_at: string; source: string }
 export type Estimate = {
   lines: { material: string; grams: number; value: number }[]
-  total: number; low: number; high: number; basis: 'model' | 'type' | 'resale'; sample: true; weight_kg: number
+  total: number; low: number; high: number; basis: 'model' | 'type' | 'resale' | 'parts'; sample: true; weight_kg: number
   condition?: { grade: Grade; factor: number }
-  resale?: { model: ResaleModel | null; condition: 'good' | 'fair' | 'poor' }
+  resale?: { model: ResaleModel | null; condition: 'good' | 'fair' | 'poor'; band?: { tier: string; age: string; brand?: string } | null; source?: string | null }
+  /** dead phones and laptops: what they sell for per piece, for parts (low/high above already include it) */
+  parts?: { tier: string; low: number; high: number; metal_low: number; metal_high: number; source: string }
+  /** when the prices were last checked, e.g. 2026-11 */
+  checked?: string
   rates: Record<string, RateInfo>
 }
 export type RepairComparison = { recommend: 'repair' | 'recycle'; repair_cost: number; resale_if_repaired: number; recycle_value: number; net_if_repaired: number; sample: true }
@@ -46,4 +50,4 @@ export type Job = { id: string; before_photo: string; after_photo: string | null
   device_type: string | null; guide_id: string | null; gear_checked: string[]; steps_done: number[]; during_photos: string[]; diary: Diary }
 export type Gear = { id: string; required: boolean; en: string; hi: string }
 
-export type ResaleModel = { id: string; type: string; brand: string; model: string; good: number; source: string }
+export type ResaleModel = { id: string; type: string; brand: string; model: string; good: number; source: string; tier?: string }

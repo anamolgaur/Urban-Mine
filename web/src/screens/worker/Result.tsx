@@ -25,9 +25,30 @@ export default function Result() {
   const city = me?.city ?? 'Delhi'
   const q = flow.type ? `city=${encodeURIComponent(city)}&type=${flow.type}${flow.modelId ? `&modelId=${flow.modelId}` : ''}` : null
   // A working device is priced by second-hand value once the worker has picked its model (or typed a price); otherwise by scrap.
-  const resaleQ = flow.works && (flow.resaleId || flow.customPrice) ? `&works=true&condition=${flow.wear}${flow.resaleId ? `&resaleId=${flow.resaleId}` : `&custom=${flow.customPrice}`}` : ''
-  const est = useApi<Estimate>(me && q && flow.works !== null ? `/api/estimate?${q}${flow.condition ? `&grade=${flow.condition.grade}` : ''}${resaleQ}` : null)
-  const resale = useApi<ResaleModel[]>(flow.type && flow.works ? `/api/resale?type=${flow.type}` : null)
+  const resaleQ = flow.works && (flow.resaleId || flow.customPrice || flow.band) ? `&works=true&condition=${flow.wear}${flow.resaleId ? `&resaleId=${flow.resaleId}` : flow.band ? `&band=${encodeURIComponent(flow.band)}` : `&custom=${flow.customPrice}`}` : ''
+  // a dead phone or laptop is priced by what its parts fetch, which depends on what kind it was when new
+  const tierQ = flow.works === false && flow.tier ? `&tier=${flow.tier}` : ''
+  const est = useApi<Estimate>(me && q && flow.works !== null ? `/api/estimate?${q}${flow.condition ? `&grade=${flow.condition.grade}` : ''}${resaleQ}${tierQ}` : null)
+  const hasTiers = flow.type === 'phone' || flow.type === 'laptop'
+  const resale = useApi<ResaleModel[]>(flow.type && (flow.works || hasTiers) ? `/api/resale?type=${flow.type}` : null)
+  const TIERS = flow.type === 'laptop' ? ['basic', 'business', 'premium'] : ['keypad', 'budget', 'mid', 'flagship']
+  // dead and the model was read from the photo: start from that model's tier
+  useEffect(() => {
+    if (flow.works === false && !flow.tier && flow.scan?.resale && resale.data) {
+      const m = resale.data.find((r) => r.id === flow.scan?.resale?.id)
+      if (m?.tier) patch({ tier: m.tier })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [flow.works, resale.data])
+  // not in the list: a rough band from brand, kind and age
+  const [bTier, setBTier] = useState<string | null>(() => flow.band?.split(':')[0] ?? null)
+  const [bAge, setBAge] = useState<string | null>(() => flow.band?.split(':')[1] ?? null)
+  const [bBrand, setBBrand] = useState<string>(() => flow.band?.split(':')[2] ?? '')
+  const setBand = (tier: string | null, age: string | null, brand: string) => {
+    setBTier(tier); setBAge(age); setBBrand(brand)
+    if (tier && age) patch({ band: `${tier}:${age}:${brand || 'Other'}`, resaleId: null, customPrice: null })
+  }
+  const brands = Array.from(new Set((resale.data ?? []).map((m) => m.brand).filter((b) => b !== 'Any')))
   // exact model from how it looks (on-device). Offered for phones and laptops; picked for you only when fairly sure and no label text matched.
   const typeLooks = (flow.type && !Array.isArray(flow.looks) ? flow.looks?.[flow.type] : null) ?? []
   const looks = typeLooks.filter((l) => (resale.data ?? []).some((m) => m.id === l.id))
@@ -76,7 +97,7 @@ export default function Result() {
           <p className="mb-2 text-lg font-bold">{t('works_q')}</p>
           <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('works_q')}>
             {[true, false].map((v) => (
-              <button key={String(v)} role="radio" aria-checked={flow.works === v} onClick={() => patch({ works: v, ...(v ? (!flow.resaleId && !flow.customPrice ? (flow.scan?.resale ? { resaleId: flow.scan.resale.id } : lookPick ? { resaleId: lookPick.id } : {}) : {}) : { resaleId: null, customPrice: null }) })}
+              <button key={String(v)} role="radio" aria-checked={flow.works === v} onClick={() => patch({ works: v, ...(v ? { tier: null, ...(!flow.resaleId && !flow.customPrice && !flow.band ? (flow.scan?.resale ? { resaleId: flow.scan.resale.id } : lookPick ? { resaleId: lookPick.id } : {}) : {}) } : { resaleId: null, customPrice: null, band: null }) })}
                 className={`min-h-14 rounded-2xl border border-hair px-3 text-base font-semibold ${flow.works === v ? 'bg-brand text-onbrand' : 'bg-white'}`}>
                 {flow.works === v && <Icon name="check" size={16} className="mr-1 inline" />}{v ? t('yes_works') : t('no_dead')}
               </button>
@@ -100,7 +121,7 @@ export default function Result() {
                 <p className="text-sm font-semibold text-mute">{t('looks_like')}</p>
                 <div className="mt-1 flex flex-wrap gap-2">
                   {lookTop.map((m) => (
-                    <button key={m.id} onClick={() => patch({ resaleId: m.id, customPrice: null })} aria-pressed={flow.resaleId === m.id}
+                    <button key={m.id} onClick={() => patch({ resaleId: m.id, customPrice: null, band: null })} aria-pressed={flow.resaleId === m.id}
                       className={`min-h-11 rounded-full border px-3 text-sm font-semibold ${flow.resaleId === m.id ? 'border-brand bg-brand text-onbrand' : 'border-hair bg-white'}`}>
                       {nameOf(m.id)} <span className="num font-normal opacity-75">{Math.round(m.p * 100)}%</span>
                     </button>
@@ -114,17 +135,48 @@ export default function Result() {
                 .sort((a, b) => Number(b.brand === lookBrand) - Number(a.brand === lookBrand)) // the brand it looks like first
                 .map((m) => (
                 <li key={m.id}>
-                  <button onClick={() => patch({ resaleId: m.id, customPrice: null })} aria-pressed={flow.resaleId === m.id}
+                  <button onClick={() => patch({ resaleId: m.id, customPrice: null, band: null })} aria-pressed={flow.resaleId === m.id}
                     className={`flex min-h-12 w-full items-center justify-between gap-2 border-b border-hair px-2 text-left text-base ${flow.resaleId === m.id ? 'bg-gold-soft font-bold' : ''}`}>
                     <span>{m.brand} {m.model}</span>{flow.resaleId === m.id && <Icon name="check" size={18} />}
                   </button>
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-sm font-semibold">{t('not_in_list')}</p>
-            <div className="mt-1 flex gap-2">
-              <input className={`${inputCls} num`} inputMode="numeric" value={ownPrice} onChange={(e) => setOwnPrice(e.target.value.replace(/\D/g, ''))} placeholder={t('own_price')} aria-label={t('own_price')} />
-              <Btn full={false} variant="secondary" disabled={!(Number(ownPrice) > 0)} onClick={() => patch({ resaleId: null, customPrice: Number(ownPrice) })}>{t('use_price')}</Btn>
+            <div className="mt-4 rounded-2xl bg-sunk p-3">
+              <p className="text-base font-bold">{t('not_in_list')}</p>
+              {hasTiers ? (
+                <>
+                  <p className="text-sm text-mute">{t('band_intro')}</p>
+                  <label className="mt-3 block text-sm font-semibold">{t('band_brand')}
+                    <select className={`${inputCls} mt-1`} value={bBrand} onChange={(e) => setBand(bTier, bAge, e.target.value)}>
+                      <option value="">{t('band_other')}</option>
+                      {brands.map((b) => <option key={b} value={b}>{b}</option>)}
+                    </select>
+                  </label>
+                  <p className="mb-1 mt-3 text-sm font-semibold">{t('band_tier')}</p>
+                  <div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('band_tier')}>
+                    {TIERS.map((k) => (
+                      <button key={k} role="radio" aria-checked={bTier === k} onClick={() => setBand(k, bAge, bBrand)}
+                        className={`min-h-12 rounded-xl border border-hair px-2 text-sm font-semibold leading-tight ${bTier === k ? 'bg-brand text-onbrand' : 'bg-white'}`}>{t('tier_' + k)}</button>
+                    ))}
+                  </div>
+                  <p className="mb-1 mt-3 text-sm font-semibold">{t('band_age')}</p>
+                  <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('band_age')}>
+                    {['new', 'mid', 'old'].map((k) => (
+                      <button key={k} role="radio" aria-checked={bAge === k} onClick={() => setBand(bTier, k, bBrand)}
+                        className={`min-h-12 rounded-xl border border-hair px-2 text-sm font-semibold leading-tight ${bAge === k ? 'bg-brand text-onbrand' : 'bg-white'}`}>{t('age_' + k)}</button>
+                    ))}
+                  </div>
+                  {flow.band && <p className="mt-2 text-sm text-mute">{t('band_note')}</p>}
+                </>
+              ) : null}
+              <details className="mt-3" open={!hasTiers}>
+                <summary className="min-h-11 cursor-pointer text-sm font-semibold underline underline-offset-4">{t('own_price_more')}</summary>
+                <div className="mt-1 flex gap-2">
+                  <input className={`${inputCls} num`} inputMode="numeric" value={ownPrice} onChange={(e) => setOwnPrice(e.target.value.replace(/\D/g, ''))} placeholder={t('own_price')} aria-label={t('own_price')} />
+                  <Btn full={false} variant="secondary" disabled={!(Number(ownPrice) > 0)} onClick={() => patch({ resaleId: null, customPrice: Number(ownPrice), band: null })}>{t('use_price')}</Btn>
+                </div>
+              </details>
             </div>
             <p className="mb-2 mt-4 text-base font-bold">{t('wear_q')}</p>
             <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t('wear_q')}>
@@ -133,7 +185,24 @@ export default function Result() {
                   className={`min-h-14 rounded-2xl border border-hair px-2 text-sm font-semibold leading-tight ${flow.wear === w ? 'bg-brand text-onbrand' : 'bg-white'}`}>{t('wear_' + w)}</button>
               ))}
             </div>
-            {!flow.resaleId && !flow.customPrice && <p className="mt-2 text-sm text-mute">{t('pick_for_price')}</p>}
+            {!flow.resaleId && !flow.customPrice && !flow.band && <p className="mt-2 text-sm text-mute">{t('pick_for_price')}</p>}
+          </section>
+        )}
+
+        {/* dead phone or laptop: what kind it was decides what its parts fetch */}
+        {flow.works === false && hasTiers && (
+          <section className="mt-3 rounded-2xl border border-hair bg-white p-3" aria-label={t('dead_tier_q_' + flow.type)}>
+            <p className="text-base font-bold">{t('dead_tier_q_' + flow.type)}</p>
+            <p className="text-sm text-mute">{t('dead_tier_why')}</p>
+            <div className="mt-2 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('dead_tier_q_' + flow.type)}>
+              {TIERS.map((k) => {
+                const sel = (flow.tier ?? (flow.type === 'laptop' ? 'basic' : 'budget')) === k
+                return (
+                  <button key={k} role="radio" aria-checked={sel} onClick={() => patch({ tier: k })}
+                    className={`min-h-12 rounded-xl border border-hair px-2 text-sm font-semibold leading-tight ${sel ? 'bg-brand text-onbrand' : 'bg-white'}`}>{t('tier_' + k)}</button>
+                )
+              })}
+            </div>
           </section>
         )}
 
@@ -173,7 +242,10 @@ export default function Result() {
               <p className="num mt-1 text-3xl font-semibold leading-tight">
                 <span className="inline-block border-b-4 border-amber/70 pb-1">{inr(e.low * qty)}</span><span className="px-1 text-mute">–</span><span className="inline-block border-b-4 border-amber/70 pb-1">{inr(e.high * qty)}</span>
               </p>
-              <p className="mt-2 text-base leading-snug text-mute">{e.basis === 'resale' ? t('range_resale') : e.basis === 'model' ? t('range_model') : t('range_type')} {t('not_an_offer')}</p>
+              <p className="mt-2 text-base leading-snug text-mute">{e.basis === 'resale' ? (e.resale?.band ? t('band_note') : t('range_resale')) : e.basis === 'parts' ? t('range_parts') : e.basis === 'model' ? t('range_model') : t('range_type')} {t('not_an_offer')}</p>
+              {e.parts && <p className="mt-2 text-sm leading-snug text-mute">{t('parts_note', { low: inr(e.parts.low), high: inr(e.parts.high), mlow: inr(e.parts.metal_low), mhigh: inr(e.parts.metal_high) })}</p>}
+              {(e.parts?.source || e.resale?.source) && <p className="mt-1 text-sm text-mute">{t('price_source', { src: e.parts?.source ?? e.resale?.source ?? '' })}</p>}
+              {e.checked && <p className="mt-1 text-sm text-mute">{t('prices_checked', { date: new Date(`${e.checked}-01T00:00:00`).toLocaleDateString(lang === 'en' ? 'en-IN' : lang + '-IN', { month: 'short', year: 'numeric' }) })}</p>}
               {updated && <p className="mt-1 flex items-center gap-1 text-sm text-mute"><Icon name="clock" size={14} />{t('rates_updated', { date: dateShort(updated) })}</p>}
             </section>
 

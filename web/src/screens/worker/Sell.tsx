@@ -47,7 +47,7 @@ export default function Sell() {
     try {
       const l = await api<Lot>('/api/lots', {
         body: {
-          items: [{ model_id: flow.modelId, type: flow.type, qty: flow.qty, ...(flow.works && (flow.resaleId || flow.customPrice) ? { works: true, condition: flow.wear, resale_id: flow.resaleId ?? undefined, custom_price: flow.customPrice ?? undefined } : {}), ...(flow.condition ? { grade: flow.condition.grade, grade_source: flow.condition.source } : {}) }],
+          items: [{ model_id: flow.modelId, type: flow.type, qty: flow.qty, ...(flow.works && (flow.resaleId || flow.customPrice || flow.band) ? { works: true, condition: flow.wear, resale_id: flow.resaleId ?? undefined, custom_price: flow.customPrice ?? undefined, band: flow.band ?? undefined } : {}), ...(flow.works === false && flow.tier ? { tier: flow.tier } : {}), ...(flow.condition ? { grade: flow.condition.grade, grade_source: flow.condition.source } : {}) }],
           weight_kg: Number(weight), steps_done: stepsDone, steps_total: stepsTotal, photo_hashes: photoHashes, gps,
         },
       })

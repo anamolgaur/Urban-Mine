@@ -1,13 +1,15 @@
 // SAMPLE rates, INR per kg. Not market data. source labels follow the rate-table spec.
 export type RateRow = { material: string; city: string; rate_per_kg: number; updated_at: string; source: string };
 
-export const MATERIALS = ['copper', 'aluminium', 'steel', 'plastic', 'glass', 'pcb', 'battery_li'] as const;
+export const MATERIALS = ['copper', 'aluminium', 'steel', 'plastic', 'glass', 'pcb', 'pcb_mobile', 'battery_li'] as const;
 
 // Checked against Indian scrap-rate trackers, mid-2026 (scraprates.in national averages, IndiaMart listings): copper ~610, iron ~33,
-// plastic ~13, Li-ion ~85-90, mixed circuit boards ~150-400. Aluminium is household-grade scrap. Glass has little or no buyer value.
-const base: Record<string, number> = { copper: 610, aluminium: 150, steel: 33, plastic: 13, glass: 4, pcb: 300, battery_li: 88 };
+// plastic ~13, mixed circuit boards ~150-400. Aluminium is household-grade scrap. Glass has little or no buyer value.
+// Updated Nov 2026 from IndiaMART listings: phone boards are high grade (Rs 550-5,000/kg, ~1,500 typical), so they get their own rate
+// (pcb_mobile); laptop and PC boards stay ~300. Phone / laptop Li-ion battery scrap trades at Rs 250-350/kg.
+const base: Record<string, number> = { copper: 610, aluminium: 150, steel: 33, plastic: 13, glass: 4, pcb: 300, pcb_mobile: 1500, battery_li: 250 };
 const cityFactor: Record<string, number> = { Delhi: 1, Kolkata: 0.94 };
-const yesterdayDelta: Record<string, number> = { copper: -6, aluminium: 2, steel: 0, plastic: 0, glass: 0, pcb: 40, battery_li: -3 };
+const yesterdayDelta: Record<string, number> = { copper: -6, aluminium: 2, steel: 0, plastic: 0, glass: 0, pcb: 40, pcb_mobile: 60, battery_li: -5 };
 
 export const TODAY = '2026-11-20';
 export const YESTERDAY = '2026-11-19';

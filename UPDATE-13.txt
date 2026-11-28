@@ -1,0 +1,29 @@
+Update 13: fairer prices for working and dead devices
+
+Working phones and laptops
+- 32 more models in the price list: Vivo (V60, V50, V29, V25, V17, X100, Y51A, Y50, Y91i, S1), iQOO (12, Z7 Pro, Z7),
+  Motorola (G85, G52, G 5G, G30, G7 Power, G6), OPPO (Reno12 Pro, Reno11, Reno8T, Reno7, Reno6, F17, A17),
+  Samsung (A55, A35, A34) and Redmi (Note 12 Pro+, Note 12 5G, 12 5G). Cashify "Get upto" quotes, checked Nov 2026.
+- Listed working models keep their old prices (good 100%, fair 75%, poor 45%); new models use the same rule.
+- Not in the list? Pick brand, kind (budget / mid-range / flagship, or basic / office / premium laptop) and age
+  (under 1 year / 1-3 / over 3) for a rough band. iPhones get x1.3. Typing your own price is still possible.
+- The price screen shows the source and "Prices checked Nov 2026".
+
+Dead devices
+- Dead phones and laptops are priced per piece for their parts (IndiaMART trader listings, Nov 2026),
+  with the metal value as the floor: keypad ~Rs 40-80, budget phone Rs 100-300, mid-range Rs 300-700,
+  flagship Rs 700-1,500; laptops Rs 400-2,000 by kind. The worker picks what kind it was.
+  The condition grade (A-D) still lowers the range.
+- Phone circuit boards now have their own high-grade rate (~Rs 1,500/kg); laptop boards stay ~Rs 300/kg.
+- Li-ion battery scrap raised from ~Rs 88/kg to ~Rs 250/kg.
+- Migration 0010 adds the phone-board rate and raises the battery rate in the live database on the next start
+  (a battery rate an auditor already raised is left alone).
+
+Checked here: 138 server tests pass (5 new), web typecheck and production build pass, check:strings passes.
+Not checked here: a real phone or browser run.
+
+Apply
+  unzip -o urban-mine-update-13.zip
+  git add -A
+  git commit -m "Fairer prices: more models, rough bands, parts value for dead devices"
+  git push

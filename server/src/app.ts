@@ -10,7 +10,7 @@ import type { Db } from './db.ts';
 import type { Identity, TokenVerifier } from './auth.ts';
 import { getSafetyPack, listSafetyTypes, isLang, type SafetyPack } from './safety.ts';
 import { estimate, getRates, setRate, staleRates } from './price.ts';
-import { RESALE, resaleRange, matchResale } from './resale.ts';
+import { RESALE, resaleRange, matchResale, tierOf, PRICES_CHECKED, isTier } from './resale.ts';
 import { runScan, saveFeedback } from './scan.ts';
 import { StubClassifier, TesseractOcr, type Classifier, type Ocr } from './vision.ts';
 import { loadModels } from './matcher.ts';
@@ -281,7 +281,7 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
 
   // ---------- reference data ----------
   app.get('/api/models', async () => await loadModels(db));
-  app.get<{ Querystring: { type?: string } }>('/api/resale', async (req) => RESALE.filter((m) => !req.query.type || m.type === req.query.type));
+  app.get<{ Querystring: { type?: string } }>('/api/resale', async (req) => RESALE.filter((m) => !req.query.type || m.type === req.query.type).map((m) => ({ ...m, tier: tierOf(m) })));
   app.get<{ Querystring: { city?: string } }>('/api/rates', async (req) => await getRates(db, req.query.city ?? 'Delhi'));
   /** Daily rate per material for the last N days (default 30), oldest first: powers the trend lines. */
   app.get<{ Querystring: { city?: string; days?: string } }>('/api/rates/history', async (req) => {
@@ -299,12 +299,12 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const q = req.query as Row;
     // A WORKING device is priced by what it sells for second-hand, not by its scrap metal.
     if (q.works === 'true') {
-      const r = resaleRange({ resaleId: q.resaleId, condition: q.condition, custom: q.custom ? Number(q.custom) : null });
-      if (r) return { lines: [], total: r.total, low: r.low, high: r.high, basis: 'resale', sample: true, weight_kg: ({ phone: 0.2, tablet: 0.5, laptop: 2, charger: 0.12, lcd_monitor: 3.5, crt_monitor: 11, router: 0.3, set_top_box: 0.4 } as Row)[String(q.type)] ?? 0.5, resale: { model: r.model, condition: r.condition }, rates: await getRates(db, city) };
+      const r = resaleRange({ resaleId: q.resaleId, condition: q.condition, custom: q.custom ? Number(q.custom) : null, band: q.band });
+      if (r) return { lines: [], total: r.total, low: r.low, high: r.high, basis: 'resale', sample: true, weight_kg: ({ phone: 0.2, tablet: 0.5, laptop: 2, charger: 0.12, lcd_monitor: 3.5, crt_monitor: 11, router: 0.3, set_top_box: 0.4 } as Row)[String(q.type)] ?? 0.5, resale: { model: r.model, condition: r.condition, band: r.band, source: r.source }, checked: PRICES_CHECKED, rates: await getRates(db, city) };
     }
-    const est = await estimate(db, city, { modelId: req.query.modelId, type: req.query.type, grade });
+    const est = await estimate(db, city, { modelId: req.query.modelId, type: req.query.type, grade, tier: q.tier });
     if (!est) throw E(404, 'No composition data for this device');
-    return { ...est, rates: await getRates(db, city) };
+    return { ...est, checked: PRICES_CHECKED, rates: await getRates(db, city) };
   });
   app.get<{ Querystring: { city?: string; type?: string; modelId?: string; works?: string } }>('/api/repair/decision', async (req) => {
     const r = await repairComparison(db, req.query.city ?? 'Delhi', { type: String(req.query.type), modelId: req.query.modelId, works: req.query.works === 'true' });
@@ -472,9 +472,9 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const b = req.body as any;
     if (!Array.isArray(b?.items) || !b.items.length || !b.items.every((i: any) => typeof i.type === 'string' && (i.qty ?? 1) >= 1 && (i.grade === undefined || isGrade(i.grade)))) throw E(400, 'items required');
     // the lot record is permanent: keep only the fields we know
-    b.items = b.items.map((i: any) => ({ ...(i.model_id ? { model_id: String(i.model_id) } : {}), type: i.type, ...(i.qty !== undefined ? { qty: i.qty } : {}), ...(i.grade ? { grade: i.grade, grade_source: i.grade_source === 'worker' ? 'worker' : 'ai' } : {}),
+    b.items = b.items.map((i: any) => ({ ...(i.model_id ? { model_id: String(i.model_id) } : {}), type: i.type, ...(i.works !== true && isTier(i.tier) ? { tier: i.tier } : {}), ...(i.qty !== undefined ? { qty: i.qty } : {}), ...(i.grade ? { grade: i.grade, grade_source: i.grade_source === 'worker' ? 'worker' : 'ai' } : {}),
       ...(i.works === true ? { works: true, condition: ['good', 'fair', 'poor'].includes(i.condition) ? i.condition : 'good',
-        ...(i.resale_id ? { resale_id: String(i.resale_id).slice(0, 40) } : {}), ...(Number(i.custom_price) > 0 && Number(i.custom_price) <= 1_000_000 ? { custom_price: Math.round(Number(i.custom_price)) } : {}) } : {}) }));
+        ...(i.resale_id ? { resale_id: String(i.resale_id).slice(0, 40) } : {}), ...(typeof i.band === 'string' ? { band: i.band.slice(0, 40) } : {}), ...(Number(i.custom_price) > 0 && Number(i.custom_price) <= 1_000_000 ? { custom_price: Math.round(Number(i.custom_price)) } : {}) } : {}) }));
     if (!(b.weight_kg > 0) || b.weight_kg > 1000) throw E(400, 'Weight must be between 0 and 1000 kg', 'bad_weight');
     if (!(b.steps_total >= 0) || !(b.steps_done >= 0) || b.steps_done > b.steps_total) throw E(400, 'invalid step counts');
     if (!Array.isArray(b.photo_hashes) || !b.photo_hashes.every((h: string) => HASH.test(h))) throw E(400, 'photo_hashes must be sha-256 hashes');
@@ -521,8 +521,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const ws = await db.prepare('SELECT w.address FROM workshop w JOIN app_user x ON x.workshop_id = w.id WHERE x.id = ?').get(u.id) as Row | undefined;
     let base = 0;
     for (const it of JSON.parse(l.items) as Row[]) {
-      const rs = it.works ? resaleRange({ resaleId: it.resale_id, condition: it.condition, custom: it.custom_price }) : null;
-      const e = rs ?? await estimate(db, cityOf(ws?.address), { modelId: it.model_id, type: it.type });
+      const rs = it.works ? resaleRange({ resaleId: it.resale_id, condition: it.condition, custom: it.custom_price, band: it.band }) : null;
+      const e = rs ?? await estimate(db, cityOf(ws?.address), { modelId: it.model_id, type: it.type, tier: it.tier });
       if (e) base += e.total * (it.qty ?? 1);
     }
     base = Math.max(10, Math.round(base));
@@ -572,8 +572,8 @@ export async function buildApp(db: Db, deps: AppDeps = {}) {
     const city = cityOf(ws?.address);
     let low = 0, high = 0;
     for (const it of JSON.parse(lotRow.items) as Row[]) {
-      const rs = it.works ? resaleRange({ resaleId: it.resale_id, condition: it.condition, custom: it.custom_price }) : null;
-      const e = rs ?? await estimate(db, city, { modelId: it.model_id, type: it.type, grade: it.grade });
+      const rs = it.works ? resaleRange({ resaleId: it.resale_id, condition: it.condition, custom: it.custom_price, band: it.band }) : null;
+      const e = rs ?? await estimate(db, city, { modelId: it.model_id, type: it.type, grade: it.grade, tier: it.tier });
       if (e) { low += e.low * (it.qty ?? 1); high += e.high * (it.qty ?? 1); }
     }
     return { workshop_address: (ws?.address as string | undefined) ?? null, expected: { low: Math.round(low), high: Math.round(high) } };

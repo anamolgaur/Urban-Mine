@@ -5,6 +5,11 @@
 
 export type ResaleCondition = 'good' | 'fair' | 'poor';
 export const CONDITION_SHARE: Record<ResaleCondition, number> = { good: 1, fair: 0.75, poor: 0.45 };
+/** When the prices in this file were last checked. Shown on the price screen. */
+export const PRICES_CHECKED = '2026-11';
+export type Tier = 'keypad' | 'budget' | 'mid' | 'flagship';
+export type LaptopTier = 'basic' | 'business' | 'premium';
+export type Age = 'new' | 'mid' | 'old'; // under 1 year, 1 to 3 years, over 3 years
 
 export type ResaleModel = { id: string; type: string; brand: string; model: string; good: number; source: string; /** extra text to recognise it by, e.g. Samsung model codes */ codes?: string[] };
 
@@ -55,20 +60,104 @@ export const RESALE: ResaleModel[] = [
   { id: 'rs-pavilion', type: 'laptop', brand: 'HP', model: 'Pavilion (Core i3 / i5)', codes: ['pavilion'], good: 9000, source: 'Consumer tier: keeps 30-40% of new price (Edify, 2026); in line with VivoBook / Aspire buyback' },
   { id: 'rs-inspiron', type: 'laptop', brand: 'Dell', model: 'Inspiron (Core i3 / i5)', codes: ['inspiron'], good: 9000, source: 'Consumer tier: keeps 30-40% of new price (Edify, 2026); in line with VivoBook / Aspire buyback' },
   { id: 'rs-laptop-basic', type: 'laptop', brand: 'Any', model: 'Basic home laptop (Core i3 / older)', good: 7000, source: 'Edify / TechEnclave lower band, 2026' },
+  // India's best-selling brands, added Nov 2026. Cashify "Get upto" quote for the base variant, checked 28 Nov 2026.
+  { id: 'rs-vivo-v60', type: 'phone', brand: 'Vivo', model: 'V60', good: 23330, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-v50', type: 'phone', brand: 'Vivo', model: 'V50', good: 21010, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-v29', type: 'phone', brand: 'Vivo', model: 'V29', good: 18720, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-v25', type: 'phone', brand: 'Vivo', model: 'V25 5G', good: 9730, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-v17', type: 'phone', brand: 'Vivo', model: 'V17', good: 5380, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-x100', type: 'phone', brand: 'Vivo', model: 'X100', good: 27150, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-y51a', type: 'phone', brand: 'Vivo', model: 'Y51A', good: 4650, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-y50', type: 'phone', brand: 'Vivo', model: 'Y50', good: 5240, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-y91i', type: 'phone', brand: 'Vivo', model: 'Y91i', good: 1570, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-vivo-s1', type: 'phone', brand: 'Vivo', model: 'S1', good: 4060, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-iqoo-12', type: 'phone', brand: 'iQOO', model: 'iQOO 12', good: 25480, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-iqoo-z7-pro', type: 'phone', brand: 'iQOO', model: 'Z7 Pro', good: 12960, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-iqoo-z7', type: 'phone', brand: 'iQOO', model: 'Z7', good: 8520, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-moto-g85', type: 'phone', brand: 'Motorola', model: 'Moto G85', good: 12400, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-moto-g52', type: 'phone', brand: 'Motorola', model: 'Moto G52', good: 4890, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-moto-g5g', type: 'phone', brand: 'Motorola', model: 'Moto G 5G', good: 4960, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-moto-g30', type: 'phone', brand: 'Motorola', model: 'Moto G30', good: 3180, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-moto-g7-power', type: 'phone', brand: 'Motorola', model: 'Moto G7 Power', good: 1970, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-moto-g6', type: 'phone', brand: 'Motorola', model: 'Moto G6', good: 1210, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-oppo-reno12-pro', type: 'phone', brand: 'OPPO', model: 'Reno12 Pro', good: 19260, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-oppo-reno11', type: 'phone', brand: 'OPPO', model: 'Reno11', good: 15410, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-oppo-reno8t', type: 'phone', brand: 'OPPO', model: 'Reno8T', good: 11560, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-oppo-reno7', type: 'phone', brand: 'OPPO', model: 'Reno7 5G', good: 8910, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-oppo-reno6', type: 'phone', brand: 'OPPO', model: 'Reno6 5G', good: 8180, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-oppo-f17', type: 'phone', brand: 'OPPO', model: 'F17', good: 5110, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-oppo-a17', type: 'phone', brand: 'OPPO', model: 'A17', good: 3980, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-a55', type: 'phone', brand: 'Samsung', model: 'Galaxy A55', codes: ['sm-a556'], good: 15990, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-a35', type: 'phone', brand: 'Samsung', model: 'Galaxy A35', codes: ['sm-a356'], good: 13230, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-a34', type: 'phone', brand: 'Samsung', model: 'Galaxy A34', codes: ['sm-a346'], good: 10090, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-note12-pro-plus', type: 'phone', brand: 'Xiaomi', model: 'Redmi Note 12 Pro+', codes: ['redmi note 12 pro\\s*(\\+|plus)'], good: 12650, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-note12-5g', type: 'phone', brand: 'Xiaomi', model: 'Redmi Note 12 5G', good: 8740, source: 'Cashify buyback, Nov 2026' },
+  { id: 'rs-redmi12-5g', type: 'phone', brand: 'Xiaomi', model: 'Redmi 12 5G', good: 8480, source: 'Cashify buyback, Nov 2026' },
 ];
+
+/** Tier of a listed model, from its top buyback quote (used to pick the parts value when it is dead). */
+export const tierOf = (m: ResaleModel): Tier | LaptopTier =>
+  m.type === 'laptop' ? (m.good >= 25000 ? 'premium' : m.good >= 11000 ? 'business' : 'basic')
+    : m.good >= 25000 ? 'flagship' : m.good >= 9000 ? 'mid' : 'budget';
+
+/**
+ * Rough value of a WORKING phone or laptop that is not in the list, from its price tier when new and its age.
+ * Fitted to the Cashify quotes above: e.g. mid-range phones 1-3 years old fetch Rs 9,000-19,000 (Galaxy A35, Vivo V29),
+ * budget phones 3+ years old Rs 1,500-4,000 (Moto G30, OPPO A17). iPhones keep more of their value (Cashkr 2026: a 2-year-old
+ * iPhone keeps 40-60% of its price, Android flagships 20-35%), so Apple gets x1.3. A wide band, never an exact price.
+ */
+export const BAND_VALUE: Record<string, Record<Age, number>> = {
+  keypad: { new: 600, mid: 400, old: 250 },
+  budget: { new: 7500, mid: 5000, old: 2500 },
+  mid: { new: 17000, mid: 12000, old: 6000 },
+  flagship: { new: 50000, mid: 30000, old: 12000 },
+  basic: { new: 14000, mid: 9000, old: 5000 },
+  business: { new: 18000, mid: 12000, old: 7000 },
+  premium: { new: 45000, mid: 30000, old: 15000 },
+};
+export const BAND_SOURCE = 'Rough band from Cashify / Cashkr buyback quotes, Nov 2026';
+export type Band = { tier: string; age: Age; brand?: string };
+export function parseBand(v: unknown): Band | null {
+  if (!v || typeof v !== 'string') return null;
+  const [tier, age, brand] = v.split(':');
+  if (!(tier in BAND_VALUE) || !['new', 'mid', 'old'].includes(age)) return null;
+  return { tier, age: age as Age, brand: brand ? brand.slice(0, 20) : undefined };
+}
 
 export const isResaleCondition = (c: unknown): c is ResaleCondition => c === 'good' || c === 'fair' || c === 'poor';
 
 /** Value range for a working device. `custom` is the worker's own price for a model that is not listed. */
-export function resaleRange(opts: { resaleId?: string | null; condition?: unknown; custom?: number | null }) {
+export function resaleRange(opts: { resaleId?: string | null; condition?: unknown; custom?: number | null; band?: unknown }) {
   const cond: ResaleCondition = isResaleCondition(opts.condition) ? opts.condition : 'good';
   const m = opts.resaleId ? RESALE.find((r) => r.id === opts.resaleId) : undefined;
-  const base = m ? m.good * CONDITION_SHARE[cond] : opts.custom && opts.custom > 0 && opts.custom <= 1_000_000 ? opts.custom : null;
+  const band = m ? null : parseBand(opts.band);
+  let base: number | null = null
+  if (m) base = m.good * CONDITION_SHARE[cond];
+  else if (band) base = BAND_VALUE[band.tier][band.age] * (band.brand?.toLowerCase() === 'apple' ? 1.3 : 1) * CONDITION_SHARE[cond];
+  else if (opts.custom && opts.custom > 0 && opts.custom <= 1_000_000) base = opts.custom;
   if (base === null) return null;
-  const spread = m ? 0.15 : 0.25;
+  const spread = m ? 0.15 : band ? 0.3 : 0.25;
   const r = (n: number) => Math.round(n);
-  return { model: m ?? null, condition: cond, total: r(base), low: r(base * (1 - spread)), high: r(base * (1 + spread)) };
+  return { model: m ?? null, band, condition: cond, total: r(base), low: r(base * (1 - spread)), high: r(base * (1 + spread)), source: m ? m.source : band ? BAND_SOURCE : null };
 }
+
+/**
+ * What a DEAD device sells for per piece, for its parts (screen, battery, camera, port, chips are reused by repair shops).
+ * From IndiaMART trader listings, Nov 2026: keypad / China phones Rs 40-80 a piece, branded smartphones Rs 100-300,
+ * Android / 4G phones bought for parts up to Rs 950-1,200; laptop scrap Rs 200-1,000 per kg (about 2 kg a laptop).
+ * Prices vary a lot by city and buyer: a band, never an exact price. The metal value is the floor.
+ */
+export const PARTS_VALUE: Record<string, { low: number; high: number }> = {
+  keypad: { low: 40, high: 80 },
+  budget: { low: 100, high: 300 },
+  mid: { low: 300, high: 700 },
+  flagship: { low: 700, high: 1500 },
+  basic: { low: 400, high: 900 },
+  business: { low: 600, high: 1300 },
+  premium: { low: 900, high: 2000 },
+};
+export const PARTS_SOURCE = 'Market estimate from IndiaMART trader listings, Nov 2026';
+export const isTier = (t: unknown): t is string => typeof t === 'string' && t in PARTS_VALUE;
 
 /** Words of a model name as a tolerant regex: "Galaxy S25 Ultra" matches "galaxy s25ultra", "GALAXY S25 ULTRA". */
 const nameRegex = (m: ResaleModel, withBrand: boolean) => {
