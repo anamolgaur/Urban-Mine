@@ -606,12 +606,11 @@ export const BN: Record<string, string> = {
   demo_reset_done: 'ডেমো রিসেট হয়েছে। নমুনা ডেটা ফিরে এসেছে।',
   sample_photos: 'অথবা একটি নমুনা ছবি দিয়ে দেখুন',
   sample_photos_hint: 'ডেমো অ্যাকাউন্ট: হাতের কাছে ডিভাইস বা ক্যামেরা না থাকলে আসল ই-বর্জ্যের ছবি।',
-  sample_phone_cracked: 'ফাটা স্ক্রিনের স্মার্টফোন',
-  sample_phone_opened: 'খোলা স্মার্টফোন',
-  sample_phone_old: 'পুরনো কিপ্যাড ফোন',
-  sample_laptop: 'পুরনো ল্যাপটপ',
-  sample_charger: 'ফোন চার্জার',
-  sample_circuit_boards: 'সার্কিট বোর্ড',
+  sample_set_galaxy: 'গ্যালাক্সি S23 আল্ট্রা, চালু',
+  sample_set_broken_phone: 'ভাঙা স্মার্টফোন',
+  sample_set_keypad_phone: 'পুরনো কিপ্যাড ফোন',
+  sample_set_thinkpad: 'লেনোভো থিংকপ্যাড ল্যাপটপ',
+  sample_set_photos: '{n}টি ছবি, ভিন্ন কোণ',
 
   // photo check and fair price
   pc_title: 'অবস্থা',

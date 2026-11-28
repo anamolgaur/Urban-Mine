@@ -606,12 +606,11 @@ export const TE: Record<string, string> = {
   demo_reset_done: 'డెమో రీసెట్ అయింది. నమూనా డేటా తిరిగి వచ్చింది.',
   sample_photos: 'లేదా ఒక నమూనా ఫోటోతో ప్రయత్నించండి',
   sample_photos_hint: 'డెమో ఖాతా: దగ్గర పరికరం లేదా కెమెరా లేకపోతే నిజమైన ఇ-వ్యర్థాల ఫోటోలు.',
-  sample_phone_cracked: 'పగిలిన స్క్రీన్ స్మార్ట్‌ఫోన్',
-  sample_phone_opened: 'తెరిచిన స్మార్ట్‌ఫోన్‌లు',
-  sample_phone_old: 'పాత కీప్యాడ్ ఫోన్',
-  sample_laptop: 'పాత ల్యాప్‌టాప్',
-  sample_charger: 'ఫోన్ ఛార్జర్',
-  sample_circuit_boards: 'సర్క్యూట్ బోర్డులు',
+  sample_set_galaxy: 'గెలాక్సీ S23 అల్ట్రా, పనిచేస్తుంది',
+  sample_set_broken_phone: 'పగిలిన స్మార్ట్‌ఫోన్',
+  sample_set_keypad_phone: 'పాత కీప్యాడ్ ఫోన్',
+  sample_set_thinkpad: 'లెనోవో థింక్‌ప్యాడ్ ల్యాప్‌టాప్',
+  sample_set_photos: '{n} ఫోటోలు, వేర్వేరు కోణాలు',
 
   // photo check and fair price
   pc_title: 'స్థితి',

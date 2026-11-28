@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react'
 import { api, setUserId, ApiError } from './api.ts'
-import { getGuest, startGuest, clearGuest, type DemoRole } from './guest.ts'
+import { getGuest, startGuest, saveGuest, clearGuest, type DemoRole, type Guest } from './guest.ts'
 import { supabase } from './supabase.ts'
 import { clearPhotoUrls } from './photoUrls.ts'
 import type { Me, NeedsOnboarding } from './types.ts'
@@ -19,12 +19,17 @@ type Ctx = {
   signOut: () => Promise<void>
   /** Guided Demo mode: become the demo account for this role (no account needed). Resolves when the app has switched. */
   startDemo: (role: DemoRole) => Promise<void>
+  /**
+   * Inside the guided Demo mode: become another role's demo account without the app going blank.
+   * The current screen stays until the new account has loaded. `pass` is a pass fetched earlier, if any.
+   */
+  switchDemo: (role: DemoRole, pass?: Guest | null) => Promise<void>
   /** Leave the guided Demo mode and go back to the sign-in screen. */
   exitDemo: () => Promise<void>
   /** The role the guided Demo mode is showing, or null when not in it. */
   demoRole: DemoRole | null
 }
-const SessionCtx = createContext<Ctx>({ status: 'loading', me: null, phone: null, error: null, loginAs: () => {}, reload: () => {}, signOut: async () => {}, startDemo: async () => {}, exitDemo: async () => {}, demoRole: null })
+const SessionCtx = createContext<Ctx>({ status: 'loading', me: null, phone: null, error: null, loginAs: () => {}, reload: () => {}, signOut: async () => {}, startDemo: async () => {}, switchDemo: async () => {}, exitDemo: async () => {}, demoRole: null })
 export const useSession = () => useContext(SessionCtx)
 
 /**
@@ -82,6 +87,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     clearPhotoUrls() // photos of the last account must not show in the next one
     setDemoRole(role); setMe(null); setStatus('loading'); setTick((t) => t + 1)
   }, [])
+  const switchDemo = useCallback(async (role: DemoRole, pass?: Guest | null) => {
+    const old = getGuest()
+    const fresh = pass && Date.parse(pass.expires_at) > Date.now() + 60_000 ? pass : null
+    if (fresh) saveGuest(fresh); else await startGuest(role)
+    try {
+      const r = await api<Me | NeedsOnboarding>('/api/me')
+      if (!r.user) throw new Error('demo account missing')
+      clearPhotoUrls() // photos of the last account must not show in the next one
+      setMe(r); setDemoRole(role); setStatus('ready')
+    } catch (e) {
+      // keep the old account working if the switch fails, and let the guide show the error
+      if (old) saveGuest(old)
+      throw e
+    }
+  }, [])
   const signOut = useCallback(async () => {
     clearGuest(); setDemoRole(null)
     if (supabase) await supabase.auth.signOut().catch(() => {})
@@ -92,5 +112,5 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     setMe(null); setPhone(null); setStatus('signed_out')
   }, [])
   const exitDemo = signOut
-  return <SessionCtx.Provider value={{ status, me, phone, error, loginAs, reload, signOut, startDemo, exitDemo, demoRole }}>{children}</SessionCtx.Provider>
+  return <SessionCtx.Provider value={{ status, me, phone, error, loginAs, reload, signOut, startDemo, switchDemo, exitDemo, demoRole }}>{children}</SessionCtx.Provider>
 }

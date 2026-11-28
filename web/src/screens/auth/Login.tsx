@@ -138,12 +138,34 @@ function DemoStart() {
     // always begin at step 1, even if an earlier demo in this tab stopped halfway
     try { sessionStorage.setItem('um_guide_step', '0'); await startDemo('worker') } catch (e) { setErr((e as Error).message); setBusy(false) }
   }
+  // the four chapters of the demo, so people know what they are about to see
+  const chapters = [
+    { r: 'worker', icon: 'camera', tint: '#3E9B66' },
+    { r: 'recycler', icon: 'box', tint: '#D4930F' },
+    { r: 'repairer', icon: 'repair', tint: '#4C8BD6' },
+    { r: 'auditor', icon: 'shield', tint: '#A86CC8' },
+  ]
   return (
-    <div className="mt-4 rounded-2xl border border-hair bg-white p-4">
-      <p className="text-lg font-semibold">{t('dg_try_t')}</p>
-      <p className="mb-3 text-base text-mute">{t('dg_try_b')}</p>
-      <Btn variant="secondary" icon="chevR" disabled={busy} onClick={start}>{busy ? t('loading') : t('dg_try')}</Btn>
+    <section aria-labelledby="dg-try-title" className="mt-4 rounded-3xl border border-hair bg-white p-5 shadow-card">
+      <div className="flex items-center justify-between gap-2">
+        <span className="rounded-full bg-gold-soft px-2.5 py-1 text-sm font-semibold text-gold-ink">{t('dg_try_badge')}</span>
+        <span className="text-sm text-mute">{t('dg_try_time')}</span>
+      </div>
+      <h2 id="dg-try-title" className="mt-3 text-2xl font-bold leading-tight">{t('dg_try_t')}</h2>
+      <p className="mt-1 text-base text-mute">{t('dg_try_b')}</p>
+      <ol className="mt-3 flex flex-col">
+        {chapters.map((c, k) => (
+          <li key={c.r} className="flex items-center gap-3 border-b border-hair py-2.5 last:border-b-0">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-sunk" style={{ color: c.tint }}><Icon name={c.icon} size={22} /></span>
+            <span className="flex flex-col leading-tight">
+              <span className="text-base font-semibold">{k + 1}. {t(`dg_rt_${c.r}`)}</span>
+              <span className="text-sm text-mute">{t(`dg_ch_${c.r}`)}</span>
+            </span>
+          </li>
+        ))}
+      </ol>
+      <div className="mt-4"><Btn icon="chevR" disabled={busy} onClick={start}>{busy ? t('loading') : t('dg_try')}</Btn></div>
       {err && <p className="mt-2 text-sm text-bad" role="alert">{err}</p>}
-    </div>
+    </section>
   )
 }

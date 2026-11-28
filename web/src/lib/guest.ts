@@ -27,13 +27,23 @@ export function clearGuest() {
   try { sessionStorage.removeItem(KEY) } catch { /* private mode */ }
 }
 
-/** Ask the server for a pass for this role's demo account, and keep it for this tab. */
-export async function startGuest(role: DemoRole): Promise<Guest> {
+/** Ask the server for a pass for this role's demo account, without using it yet (the guide fetches the next roles early). */
+export async function fetchGuest(role: DemoRole): Promise<Guest> {
   // plain fetch, not api(): api() would attach the current pass or sign-in, and this call needs neither
   const res = await fetch(apiUrl('/api/demo/guest'), { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ role }) })
   const data = await res.json().catch(() => ({})) as Partial<Guest> & { error?: string }
   if (!res.ok || !data.token) throw new Error(data.error ?? `Could not start the demo (${res.status})`)
-  const g: Guest = { token: data.token, role, expires_at: data.expires_at ?? new Date(Date.now() + 3600_000).toISOString() }
+  return { token: data.token, role, expires_at: data.expires_at ?? new Date(Date.now() + 3600_000).toISOString() }
+}
+
+/** Use this pass from now on, for this tab. */
+export function saveGuest(g: Guest) {
   try { sessionStorage.setItem(KEY, JSON.stringify(g)) } catch { /* private mode: the pass lives only until reload */ }
+}
+
+/** Ask the server for a pass for this role's demo account, and keep it for this tab. */
+export async function startGuest(role: DemoRole): Promise<Guest> {
+  const g = await fetchGuest(role)
+  saveGuest(g)
   return g
 }

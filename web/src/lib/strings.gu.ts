@@ -606,12 +606,11 @@ export const GU: Record<string, string> = {
   demo_reset_done: 'ડેમો રીસેટ થયો. નમૂના ડેટા પાછો આવ્યો.',
   sample_photos: 'અથવા નમૂના ફોટો અજમાવો',
   sample_photos_hint: 'ડેમો ખાતું: પાસે કોઈ ઉપકરણ કે કેમેરા ન હોય તો સાચા ઈ-કચરાના ફોટા.',
-  sample_phone_cracked: 'તૂટેલી સ્ક્રીનવાળો સ્માર્ટફોન',
-  sample_phone_opened: 'ખોલેલા સ્માર્ટફોન',
-  sample_phone_old: 'જૂનો કીપેડ ફોન',
-  sample_laptop: 'જૂનું લેપટોપ',
-  sample_charger: 'ફોન ચાર્જર',
-  sample_circuit_boards: 'સર્કિટ બોર્ડ',
+  sample_set_galaxy: 'ગેલેક્સી S23 અલ્ટ્રા, ચાલુ',
+  sample_set_broken_phone: 'તૂટેલો સ્માર્ટફોન',
+  sample_set_keypad_phone: 'જૂનો કીપેડ ફોન',
+  sample_set_thinkpad: 'લેનોવો થિંકપેડ લેપટોપ',
+  sample_set_photos: '{n} ફોટા, જુદા ખૂણા',
 
   // photo check and fair price
   pc_title: 'સ્થિતિ',

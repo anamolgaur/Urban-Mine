@@ -606,12 +606,11 @@ export const TA: Record<string, string> = {
   demo_reset_done: 'டெமோ மீட்டமைக்கப்பட்டது. மாதிரி தரவு திரும்பியது.',
   sample_photos: 'அல்லது ஒரு மாதிரிப் படத்தை முயலுங்கள்',
   sample_photos_hint: 'டெமோ கணக்கு: கருவியோ கேமராவோ இல்லையெனில் உண்மையான மின்கழிவுப் படங்கள்.',
-  sample_phone_cracked: 'உடைந்த திரை ஸ்மார்ட்போன்',
-  sample_phone_opened: 'திறக்கப்பட்ட ஸ்மார்ட்போன்கள்',
-  sample_phone_old: 'பழைய கீபேட் போன்',
-  sample_laptop: 'பழைய லேப்டாப்',
-  sample_charger: 'போன் சார்ஜர்',
-  sample_circuit_boards: 'சர்க்யூட் போர்டுகள்',
+  sample_set_galaxy: 'கேலக்ஸி S23 அல்ட்ரா, இயங்குகிறது',
+  sample_set_broken_phone: 'உடைந்த ஸ்மார்ட்போன்',
+  sample_set_keypad_phone: 'பழைய கீபேட் போன்',
+  sample_set_thinkpad: 'லெனோவோ திங்க்பேட் லேப்டாப்',
+  sample_set_photos: '{n} படங்கள், வெவ்வேறு கோணங்கள்',
 
   // photo check and fair price
   pc_title: 'நிலை',

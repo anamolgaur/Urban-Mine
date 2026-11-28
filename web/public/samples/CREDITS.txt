@@ -1,7 +1,14 @@
-Sample photos for demo accounts. All from Pexels (https://www.pexels.com), free to use under the Pexels License (no attribution required; credited here anyway).
-phone-cracked.jpg   https://www.pexels.com/photo/16658255/
-phone-opened.jpg    https://www.pexels.com/photo/14534828/
-phone-old.jpg       https://www.pexels.com/photo/10785779/
-laptop.jpg          https://www.pexels.com/photo/265136/
-charger.jpg         https://www.pexels.com/photo/36012993/
-circuit-boards.jpg  https://www.pexels.com/photo/38411739/  (RETURN E-Waste)
+Sample photo sets for demo accounts: one device, several angles. Creative Commons photos from Wikimedia Commons and Flickr.
+
+galaxy/1.jpg            Samsung Galaxy S23 Ultra, back. PantheraLeo1359531, CC BY 4.0. https://commons.wikimedia.org/w/index.php?curid=146723026
+galaxy/2.jpg            Samsung S23 Ultra, front. Gannu03, CC BY-SA 4.0. https://commons.wikimedia.org/wiki/File:Samsung_S23_Ultra.jpg
+galaxy/3.jpg            Samsung phones over time (side). PantheraLeo1359531, CC BY 4.0. https://commons.wikimedia.org/wiki/File:Samsung-Mobiltelefone_%C3%BCber_die_Zeit_20240217_HOF07501_RAW-Export_000547cens.png
+broken-phone/1.jpg   Samsung Galaxy S2 shattered screen. Ashwin Kumar, CC BY-SA 2.0. https://commons.wikimedia.org/w/index.php?curid=52244516
+broken-phone/2.jpg   "Monday...". Rd. Vortex, CC BY 2.0. https://www.flickr.com/photos/9000052@N02/14787935253
+broken-phone/3.jpg   Cracked iPhone screen, Day 3. Patrick Hoesly, CC BY 2.0. https://www.flickr.com/photos/60057912@N00/4657447040
+keypad-phone/1.jpg   Samsung Stratus, front (closed). Beamish4, CC BY-SA 4.0. https://commons.wikimedia.org/wiki/File:Samsung_Stratus_(Midnight_Black)_-_Front_(Closed,_splash_screen).jpg
+keypad-phone/2.jpg   Samsung Stratus, front (open). Beamish4, CC BY-SA 4.0. https://commons.wikimedia.org/wiki/File:Samsung_Stratus_(Midnight_Black)_-_Front_(Open,_splash_screen).jpg
+keypad-phone/3.jpg   Samsung SGH-U700, front (open). Beamish4, CC BY-SA 4.0. https://commons.wikimedia.org/wiki/File:Samsung_SGH-U700_(Dark_Silver)_-_Front_(Open,_splash_screen).jpg
+thinkpad/1.jpg       New Lenovo R61 laptop. deltaMike, CC BY 2.0. https://www.flickr.com/photos/86078640@N00/772451736
+thinkpad/2.jpg       Top cover of a closed Lenovo ThinkPad X220. Siarhei V, CC BY-SA 4.0. https://commons.wikimedia.org/w/index.php?curid=179739132
+thinkpad/3.jpg       ThinkPad T410 left side interfaces. cai~cai~, CC BY-NC 2.0. https://www.flickr.com/photos/74013341@N00/4337939537

@@ -14,8 +14,17 @@ import Icon from '../../components/Icon.tsx'
 import { useSession } from '../../lib/session.tsx'
 import { supabase } from '../../lib/supabase.ts'
 
-/** Demo accounts only: real photos of e-waste to try the scan with, when there is no camera or device at hand. */
-const SAMPLES = ['phone-cracked', 'phone-opened', 'phone-old', 'laptop', 'charger', 'circuit-boards']
+/**
+ * Demo accounts only: real photo sets to try the scan with, when there is no camera or device at hand.
+ * Each set is ONE device from several angles, like a real scan, so the panel sees the app combine the photos.
+ * Every set was checked against the on-device detector before it was added (see web/public/samples/CREDITS.txt).
+ */
+const SAMPLE_SETS = [
+  { id: 'galaxy', n: 3 },
+  { id: 'broken-phone', n: 3 },
+  { id: 'keypad-phone', n: 3 },
+  { id: 'thinkpad', n: 3 },
+]
 
 const SHOTS = ['shot_top', 'shot_under', 'shot_back', 'shot_label']
 
@@ -87,11 +96,18 @@ export default function Scan() {
 
   const { me } = useSession()
   const showSamples = !!me?.demo || !supabase
-  async function pickSample(name: string) {
+  const [loadingSet, setLoadingSet] = useState<string | null>(null)
+  // Fill the photo slots with every angle of the chosen device (slot 1, 2, 3...); any slot after them is cleared.
+  async function pickSet(id: string, n: number) {
+    setLoadingSet(id); setErr(null)
     try {
-      const b = await (await fetch(`/samples/${name}.jpg`)).blob()
-      await onFile(new File([b], `${name}.jpg`, { type: 'image/jpeg' }))
-    } catch (e) { setErr((e as Error).message) }
+      const urls = await Promise.all(Array.from({ length: n }, async (_, i) => {
+        const b = await (await fetch(`/samples/${id}/${i + 1}.jpg`)).blob()
+        return fileToDataUrl(new File([b], `${id}-${i + 1}.jpg`, { type: 'image/jpeg' }))
+      }))
+      setPicked(false); patch({ hint: null, images: flow.images.map((_, j) => urls[j] ?? null) })
+      setActive(Math.min(n, flow.images.length - 1))
+    } catch (e) { setErr((e as Error).message) } finally { setLoadingSet(null) }
   }
 
   async function onFile(f: File | undefined) {
@@ -153,11 +169,16 @@ export default function Scan() {
           <div data-tour="samples" className="mt-3 rounded-2xl border border-hair bg-white p-3">
             <p className="text-base font-semibold">{t('sample_photos')}</p>
             <p className="mb-2 text-sm text-mute">{t('sample_photos_hint')}</p>
-            <ul className="flex gap-2 overflow-x-auto pb-1">
-              {SAMPLES.map((n) => (
-                <li key={n} className="shrink-0">
-                  <button onClick={() => void pickSample(n)} aria-label={t('sample_' + n.replace('-', '_'))} className="block h-16 w-20 overflow-hidden rounded-lg border border-hair focus:outline focus:outline-[3px] focus:outline-ink">
-                    <img src={`/samples/${n}.jpg`} alt="" className="h-full w-full object-cover" loading="lazy" />
+            <ul className="grid grid-cols-2 gap-2">
+              {SAMPLE_SETS.map(({ id, n }) => (
+                <li key={id}>
+                  <button onClick={() => void pickSet(id, n)} disabled={loadingSet !== null}
+                    className="flex w-full flex-col gap-1.5 rounded-xl border border-hair p-1.5 text-left disabled:opacity-60 focus:outline focus:outline-[3px] focus:outline-ink">
+                    <span className="grid h-14 w-full grid-cols-3 gap-0.5 overflow-hidden rounded-lg">
+                      {Array.from({ length: n }, (_, i) => <img key={i} src={`/samples/${id}/${i + 1}.jpg`} alt="" className="h-full w-full object-cover" loading="lazy" />)}
+                    </span>
+                    <span className="px-1 text-sm font-semibold leading-tight">{t('sample_set_' + id.replace('-', '_'))}</span>
+                    <span className="px-1 text-xs text-mute">{loadingSet === id ? t('loading') : t('sample_set_photos', { n })}</span>
                   </button>
                 </li>
               ))}

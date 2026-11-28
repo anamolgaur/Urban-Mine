@@ -606,12 +606,11 @@ export const MR: Record<string, string> = {
   demo_reset_done: 'डेमो रीसेट झाला. नमुना डेटा परत आला.',
   sample_photos: 'किंवा नमुना फोटो वापरून पाहा',
   sample_photos_hint: 'डेमो खाते: जवळ उपकरण किंवा कॅमेरा नसल्यास ई-कचऱ्याचे खरे फोटो.',
-  sample_phone_cracked: 'फुटलेल्या स्क्रीनचा स्मार्टफोन',
-  sample_phone_opened: 'उघडलेले स्मार्टफोन',
-  sample_phone_old: 'जुना कीपॅड फोन',
-  sample_laptop: 'जुना लॅपटॉप',
-  sample_charger: 'फोन चार्जर',
-  sample_circuit_boards: 'सर्किट बोर्ड',
+  sample_set_galaxy: 'गॅलेक्सी S23 अल्ट्रा, चालू',
+  sample_set_broken_phone: 'तुटलेला स्मार्टफोन',
+  sample_set_keypad_phone: 'जुना कीपॅड फोन',
+  sample_set_thinkpad: 'लेनोवो थिंकपॅड लॅपटॉप',
+  sample_set_photos: '{n} फोटो, वेगवेगळे कोन',
 
   // photo check and fair price
   pc_title: 'स्थिती',
